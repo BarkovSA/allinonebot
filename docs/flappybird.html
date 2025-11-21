@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            border: 3px solid #00ffff;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            border-radius: 10px;
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = Math.min(600, window.innerWidth - 40);
+        canvas.height = Math.min(800, window.innerHeight - 40);
+        
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+        
+        const GRAVITY = 0.5;
+        const JUMP_FORCE = -9;
+        const PIPE_SPEED = 3;
+        const PIPE_GAP = 200;
+        const PIPE_WIDTH = 80;
+        
+        class Particle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.life = 1;
+                this.size = Math.random() * 3 + 1;
+                this.color = `hsl(${Math.random() * 60 + 180}, 100%, 60%)`;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.02;
+                this.vy += 0.1;
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+        
+        class Bird {
+            constructor() {
+                this.x = canvas.width / 4;
+                this.y = canvas.height / 2;
+                this.velocity = 0;
+                this.size = 30;
+                this.rotation = 0;
+            }
+            
+            jump() {
+                this.velocity = JUMP_FORCE;
+                window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                
+                for (let i = 0; i < 5; i++) {
+                    particles.push(new Particle(this.x, this.y + this.size / 2));
+                }
+            }
+            
+            update() {
+                this.velocity += GRAVITY;
+                this.y += this.velocity;
+                this.rotation = Math.min(Math.max(this.velocity * 2, -30), 90);
+                
+                if (this.y + this.size > canvas.height || this.y < 0) {
+                    gameOver();
+                }
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation * Math.PI / 180);
+                
+                // Птица с градиентом
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+                gradient.addColorStop(0, '#ffff00');
+                gradient.addColorStop(0.5, '#ff9900');
+                gradient.addColorStop(1, '#ff4400');
+                
+                // Тело
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Свечение
+                ctx.shadowColor = '#ffaa00';
+                ctx.shadowBlur = 20;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Крыло
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.ellipse(-10, 0, 15, 8, Math.sin(Date.now() / 100) * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Глаз
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(8, -8, 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(10, -8, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Клюв
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.moveTo(15, 0);
+                ctx.lineTo(25, -3);
+                ctx.lineTo(25, 3);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+        
+        class Pipe {
+            constructor() {
+                this.x = canvas.width;
+                this.gapY = Math.random() * (canvas.height - PIPE_GAP - 100) + 50;
+                this.scored = false;
+            }
+            
+            update() {
+                this.x -= PIPE_SPEED;
+                
+                if (!this.scored && this.x + PIPE_WIDTH < bird.x) {
+                    score++;
+                    this.scored = true;
+                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+            }
+            
+            draw() {
+                // Верхняя труба
+                const topGradient = ctx.createLinearGradient(this.x, 0, this.x + PIPE_WIDTH, 0);
+                topGradient.addColorStop(0, '#00ffaa');
+                topGradient.addColorStop(0.5, '#00cc88');
+                topGradient.addColorStop(1, '#00aa66');
+                
+                ctx.fillStyle = topGradient;
+                ctx.fillRect(this.x, 0, PIPE_WIDTH, this.gapY);
+                
+                // Свечение верхней трубы
+                ctx.shadowColor = '#00ffaa';
+                ctx.shadowBlur = 15;
+                ctx.fillRect(this.x, 0, PIPE_WIDTH, this.gapY);
+                ctx.shadowBlur = 0;
+                
+                // Нижняя труба
+                const bottomGradient = ctx.createLinearGradient(this.x, this.gapY + PIPE_GAP, this.x + PIPE_WIDTH, this.gapY + PIPE_GAP);
+                bottomGradient.addColorStop(0, '#ff00aa');
+                bottomGradient.addColorStop(0.5, '#cc0088');
+                bottomGradient.addColorStop(1, '#aa0066');
+                
+                ctx.fillStyle = bottomGradient;
+                ctx.fillRect(this.x, this.gapY + PIPE_GAP, PIPE_WIDTH, canvas.height - this.gapY - PIPE_GAP);
+                
+                // Свечение нижней трубы
+                ctx.shadowColor = '#ff00aa';
+                ctx.shadowBlur = 15;
+                ctx.fillRect(this.x, this.gapY + PIPE_GAP, PIPE_WIDTH, canvas.height - this.gapY - PIPE_GAP);
+                ctx.shadowBlur = 0;
+                
+                // Края труб
+                ctx.fillStyle = '#ffffff';
+                ctx.globalAlpha = 0.3;
+                ctx.fillRect(this.x, this.gapY - 20, PIPE_WIDTH, 20);
+                ctx.fillRect(this.x, this.gapY + PIPE_GAP, PIPE_WIDTH, 20);
+                ctx.globalAlpha = 1;
+            }
+            
+            collidesWith(bird) {
+                if (bird.x + bird.size > this.x && bird.x - bird.size < this.x + PIPE_WIDTH) {
+                    if (bird.y - bird.size < this.gapY || bird.y + bird.size > this.gapY + PIPE_GAP) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+        
+        let bird = new Bird();
+        let pipes = [];
+        let particles = [];
+        let score = 0;
+        let gameRunning = false;
+        let gameOverState = false;
+        let frameCount = 0;
+        
+        function drawBackground() {
+            // Звёзды
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 37) % canvas.width;
+                const y = (i * 79) % canvas.height;
+                const size = Math.sin(Date.now() / 1000 + i) * 0.5 + 1;
+                ctx.globalAlpha = Math.sin(Date.now() / 500 + i) * 0.3 + 0.5;
+                ctx.fillRect(x, y, size, size);
+            }
+            ctx.globalAlpha = 1;
+        }
+        
+        function drawScore() {
+            ctx.font = 'bold 60px Arial';
+            ctx.fillStyle = '#00ffff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 20;
+            ctx.textAlign = 'center';
+            ctx.fillText(score, canvas.width / 2, 80);
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawStartScreen() {
+            ctx.font = 'bold 40px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'center';
+            ctx.fillText('FLAPPY BIRD', canvas.width / 2, canvas.height / 2 - 100);
+            
+            ctx.font = '24px Arial';
+            ctx.fillStyle = '#00ffff';
+            ctx.fillText('Нажмите для старта', canvas.width / 2, canvas.height / 2);
+            
+            ctx.font = '18px Arial';
+            ctx.fillStyle = '#ffaa00';
+            ctx.fillText('Избегайте труб!', canvas.width / 2, canvas.height / 2 + 50);
+        }
+        
+        function drawGameOverScreen() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.font = 'bold 50px Arial';
+            ctx.fillStyle = '#ff0000';
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 20;
+            ctx.textAlign = 'center';
+            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 50);
+            ctx.shadowBlur = 0;
+            
+            ctx.font = '30px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('Счёт: ' + score, canvas.width / 2, canvas.height / 2 + 20);
+            
+            ctx.font = '20px Arial';
+            ctx.fillStyle = '#00ffff';
+            ctx.fillText('Нажмите для рестарта', canvas.width / 2, canvas.height / 2 + 80);
+        }
+        
+        function gameOver() {
+            if (!gameOverState) {
+                gameOverState = true;
+                gameRunning = false;
+                window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            }
+        }
+        
+        function resetGame() {
+            bird = new Bird();
+            pipes = [];
+            particles = [];
+            score = 0;
+            gameRunning = true;
+            gameOverState = false;
+            frameCount = 0;
+        }
+        
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            
+            if (!gameRunning && !gameOverState) {
+                bird.draw();
+                drawStartScreen();
+            } else if (gameRunning) {
+                bird.update();
+                bird.draw();
+                
+                frameCount++;
+                if (frameCount % 90 === 0) {
+                    pipes.push(new Pipe());
+                }
+                
+                pipes.forEach((pipe, index) => {
+                    pipe.update();
+                    pipe.draw();
+                    
+                    if (pipe.collidesWith(bird)) {
+                        gameOver();
+                    }
+                    
+                    if (pipe.x + PIPE_WIDTH < 0) {
+                        pipes.splice(index, 1);
+                    }
+                });
+                
+                particles.forEach((particle, index) => {
+                    particle.update();
+                    particle.draw();
+                    if (particle.life <= 0) {
+                        particles.splice(index, 1);
+                    }
+                });
+                
+                drawScore();
+            } else if (gameOverState) {
+                pipes.forEach(pipe => pipe.draw());
+                bird.draw();
+                drawScore();
+                drawGameOverScreen();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        canvas.addEventListener('click', () => {
+            if (!gameRunning && !gameOverState) {
+                gameRunning = true;
+            } else if (gameOverState) {
+                resetGame();
+            } else {
+                bird.jump();
+            }
+        });
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameRunning && !gameOverState) {
+                gameRunning = true;
+            } else if (gameOverState) {
+                resetGame();
+            } else {
+                bird.jump();
+            }
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (!gameRunning && !gameOverState) {
+                    gameRunning = true;
+                } else if (gameOverState) {
+                    resetGame();
+                } else {
+                    bird.jump();
+                }
+            }
+        });
+        
+        gameLoop();
+    </script>
+</body>
+</html>
