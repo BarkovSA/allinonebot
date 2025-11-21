@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cyber Bird</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Orbitron', 'Courier New', monospace;
+            overflow: hidden;
+            touch-action: none;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 30% 40%, rgba(255, 0, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 70% 60%, rgba(0, 255, 255, 0.15) 0%, transparent 50%);
+            animation: bgShift 8s ease-in-out infinite;
+        }
+        
+        @keyframes bgShift {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        #gameContainer {
+            position: relative;
+            background: linear-gradient(180deg, #0a0014 0%, #1a0a2e 50%, #0a0014 100%);
+            border-radius: 20px;
+            box-shadow: 
+                0 0 80px rgba(255, 0, 255, 0.5),
+                0 0 120px rgba(0, 255, 255, 0.3),
+                inset 0 0 80px rgba(255, 0, 255, 0.1);
+            overflow: hidden;
+            border: 3px solid;
+            border-image: linear-gradient(45deg, #ff00ff, #00ffff) 1;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        #score {
+            font-size: 48px;
+            font-weight: bold;
+            color: #00ffff;
+            text-shadow: 
+                0 0 20px #00ffff,
+                0 0 40px #00ffff,
+                0 0 60px #ff00ff;
+            animation: scoreGlow 2s ease-in-out infinite;
+        }
+        
+        @keyframes scoreGlow {
+            0%, 100% { 
+                text-shadow: 
+                    0 0 20px #00ffff,
+                    0 0 40px #00ffff,
+                    0 0 60px #ff00ff;
+            }
+            50% { 
+                text-shadow: 
+                    0 0 10px #00ffff,
+                    0 0 20px #00ffff,
+                    0 0 30px #ff00ff;
+            }
+        }
+        
+        #startScreen, #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(10, 0, 20, 0.95);
+            z-index: 15;
+            backdrop-filter: blur(10px);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        #title {
+            font-size: 64px;
+            font-weight: bold;
+            background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 30px;
+            animation: titlePulse 3s ease-in-out infinite;
+            text-shadow: 0 0 40px rgba(255, 0, 255, 0.8);
+        }
+        
+        @keyframes titlePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .subtitle {
+            font-size: 24px;
+            color: #ff00ff;
+            margin-bottom: 40px;
+            text-shadow: 0 0 20px #ff00ff;
+        }
+        
+        .instruction {
+            font-size: 18px;
+            color: #00ffff;
+            text-align: center;
+            line-height: 2;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        
+        #finalScore {
+            font-size: 32px;
+            color: #ffff00;
+            margin: 20px 0;
+            text-shadow: 0 0 20px #ffff00;
+        }
+        
+        #highScore {
+            font-size: 24px;
+            color: #00ff00;
+            margin-bottom: 40px;
+            text-shadow: 0 0 15px #00ff00;
+        }
+        
+        @media (max-width: 600px) {
+            #gameContainer {
+                border-radius: 0;
+                width: 100vw !important;
+                height: 100vh !important;
+            }
+            
+            #title {
+                font-size: 48px;
+            }
+            
+            #score {
+                font-size: 36px;
+            }
+            
+            .subtitle {
+                font-size: 20px;
+            }
+            
+            .instruction {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="ui">
+            <div id="score">0</div>
+        </div>
+        <canvas id="canvas"></canvas>
+        
+        <div id="startScreen">
+            <div id="title">⚡ CYBER BIRD ⚡</div>
+            <div class="subtitle">Neon Flight Challenge</div>
+            <div class="instruction">
+                ▶ TAP or SPACE to FLY<br>
+                ⚠ AVOID THE BARRIERS<br>
+                ━━━━━━━━━━━━━━━━<br>
+                PRESS TO START
+            </div>
+        </div>
+        
+        <div id="gameOverScreen" class="hidden">
+            <div id="title">⚠ GAME OVER ⚠</div>
+            <div id="finalScore">SCORE: 0</div>
+            <div id="highScore">BEST: 0</div>
+            <div class="instruction">
+                ━━━━━━━━━━━━━━━━<br>
+                PRESS TO RESTART
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Telegram WebApp
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
+
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('gameContainer');
+        
+        function resizeCanvas() {
+            const maxWidth = Math.min(window.innerWidth, 600);
+            const maxHeight = Math.min(window.innerHeight, 800);
+            
+            canvas.width = maxWidth;
+            canvas.height = maxHeight;
+            container.style.width = maxWidth + 'px';
+            container.style.height = maxHeight + 'px';
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Game constants
+        const GRAVITY = 0.5;
+        const FLAP_POWER = -10;
+        const PIPE_WIDTH = 80;
+        const PIPE_GAP = 180;
+        const PIPE_SPEED = 3;
+        const BIRD_SIZE = 30;
+        
+        // Game state
+        let gameRunning = false;
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('cyberBirdHighScore') || '0');
+        let frameCount = 0;
+        
+        // Bird
+        const bird = {
+            x: 100,
+            y: canvas.height / 2,
+            velocity: 0,
+            rotation: 0
+        };
+        
+        // Pipes
+        let pipes = [];
+        const PIPE_SPAWN_INTERVAL = 120;
+        let pipeTimer = PIPE_SPAWN_INTERVAL;
+        
+        // Particles
+        let particles = [];
+        
+        // Stars background
+        let stars = [];
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2,
+                speed: Math.random() * 0.5 + 0.2
+            });
+        }
+        
+        function createParticle(x, y, color) {
+            for (let i = 0; i < 5; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    life: 1,
+                    color: color,
+                    size: Math.random() * 3 + 2
+                });
+            }
+        }
+        
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.02;
+                p.vx *= 0.98;
+                p.vy *= 0.98;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = p.color;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+            });
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawStars() {
+            stars.forEach(star => {
+                const pulse = Math.sin(frameCount * 0.05 + star.x) * 0.5 + 0.5;
+                ctx.globalAlpha = pulse * 0.8;
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+                
+                star.x -= star.speed;
+                if (star.x < 0) {
+                    star.x = canvas.width;
+                    star.y = Math.random() * canvas.height;
+                }
+            });
+            ctx.globalAlpha = 1;
+        }
+        
+        function drawBird() {
+            ctx.save();
+            ctx.translate(bird.x, bird.y);
+            ctx.rotate(bird.rotation);
+            
+            // Bird trail
+            if (Math.random() < 0.5) {
+                createParticle(bird.x - 15, bird.y, '#ff00ff');
+            }
+            
+            // Outer glow
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#ff00ff';
+            
+            // Bird body
+            ctx.fillStyle = '#ff00ff';
+            ctx.fillRect(-BIRD_SIZE / 2, -BIRD_SIZE / 2, BIRD_SIZE, BIRD_SIZE);
+            
+            // Inner core
+            ctx.fillStyle = '#ff00ff';
+            ctx.fillRect(-BIRD_SIZE / 2 + 5, -BIRD_SIZE / 2 + 5, BIRD_SIZE - 10, BIRD_SIZE - 10);
+            
+            // Eye
+            ctx.shadowColor = '#00ffff';
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(BIRD_SIZE / 4, -5, 8, 8);
+            
+            // Wing
+            ctx.fillStyle = '#ff00ff';
+            const wingY = Math.sin(frameCount * 0.3) * 5;
+            ctx.fillRect(-BIRD_SIZE / 2, wingY, 15, 5);
+            
+            ctx.restore();
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawPipe(pipe) {
+            // Top pipe
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = '#00ffff';
+            
+            // Outer glow
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(pipe.x - 3, 0, PIPE_WIDTH + 6, pipe.topHeight + 3);
+            
+            // Pipe body
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(pipe.x, 0, PIPE_WIDTH, pipe.topHeight);
+            
+            // Inner dark
+            ctx.fillStyle = '#006666';
+            ctx.fillRect(pipe.x + 5, 0, PIPE_WIDTH - 10, pipe.topHeight);
+            
+            // Grid lines
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 2;
+            for (let y = 0; y < pipe.topHeight; y += 20) {
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(pipe.x, y);
+                ctx.lineTo(pipe.x + PIPE_WIDTH, y);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+            
+            // Bottom pipe
+            const bottomY = pipe.topHeight + PIPE_GAP;
+            const bottomHeight = canvas.height - bottomY;
+            
+            ctx.shadowColor = '#00ffff';
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(pipe.x - 3, bottomY - 3, PIPE_WIDTH + 6, bottomHeight + 3);
+            
+            ctx.fillStyle = '#00ffff';
+            ctx.fillRect(pipe.x, bottomY, PIPE_WIDTH, bottomHeight);
+            
+            ctx.fillStyle = '#006666';
+            ctx.fillRect(pipe.x + 5, bottomY, PIPE_WIDTH - 10, bottomHeight);
+            
+            // Grid lines
+            for (let y = bottomY; y < canvas.height; y += 20) {
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(pipe.x, y);
+                ctx.lineTo(pipe.x + PIPE_WIDTH, y);
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+            
+            // Sparks
+            if (Math.random() < 0.1) {
+                createParticle(pipe.x + Math.random() * PIPE_WIDTH, pipe.topHeight, '#00ffff');
+                createParticle(pipe.x + Math.random() * PIPE_WIDTH, bottomY, '#00ffff');
+            }
+            
+            ctx.shadowBlur = 0;
+        }
+        
+        function spawnPipe() {
+            const minHeight = 100;
+            const maxHeight = canvas.height - PIPE_GAP - 100;
+            const topHeight = Math.random() * (maxHeight - minHeight) + minHeight;
+            
+            pipes.push({
+                x: canvas.width,
+                topHeight: topHeight,
+                scored: false
+            });
+        }
+        
+        function updateBird() {
+            if (gameRunning) {
+                bird.velocity += GRAVITY;
+                bird.y += bird.velocity;
+                
+                // Rotation based on velocity
+                bird.rotation = Math.min(Math.max(bird.velocity * 0.05, -0.5), 0.5);
+                
+                // Check boundaries
+                if (bird.y < 0 || bird.y > canvas.height) {
+                    gameOver();
+                }
+            }
+        }
+        
+        function updatePipes() {
+            if (gameRunning) {
+                if (pipeTimer <= 0) {
+                    spawnPipe();
+                    pipeTimer = PIPE_SPAWN_INTERVAL;
+                } else {
+                    pipeTimer--;
+                }
+                
+                for (let i = pipes.length - 1; i >= 0; i--) {
+                    const pipe = pipes[i];
+                    pipe.x -= PIPE_SPEED;
+                    
+                    // Score
+                    if (!pipe.scored && pipe.x + PIPE_WIDTH < bird.x) {
+                        pipe.scored = true;
+                        score++;
+                        document.getElementById('score').textContent = score;
+                        
+                        if (tg) tg.HapticFeedback?.impactOccurred('light');
+                        createParticle(bird.x, bird.y, '#ffff00');
+                    }
+                    
+                    // Collision
+                    if (checkCollision(pipe)) {
+                        gameOver();
+                    }
+                    
+                    // Remove off-screen
+                    if (pipe.x + PIPE_WIDTH < 0) {
+                        pipes.splice(i, 1);
+                    }
+                }
+            }
+        }
+        
+        function checkCollision(pipe) {
+            const birdBox = {
+                x: bird.x - BIRD_SIZE / 2 + 3,
+                y: bird.y - BIRD_SIZE / 2 + 3,
+                width: BIRD_SIZE - 6,
+                height: BIRD_SIZE - 6
+            };
+            
+            if (birdBox.x + birdBox.width > pipe.x && birdBox.x < pipe.x + PIPE_WIDTH) {
+                if (birdBox.y < pipe.topHeight || birdBox.y + birdBox.height > pipe.topHeight + PIPE_GAP) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+        
+        function flap() {
+            if (gameRunning) {
+                bird.velocity = FLAP_POWER;
+                if (tg) tg.HapticFeedback?.impactOccurred('light');
+                createParticle(bird.x, bird.y + BIRD_SIZE / 2, '#ff00ff');
+            }
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            
+            // Explosion effect
+            for (let i = 0; i < 30; i++) {
+                createParticle(bird.x, bird.y, i % 2 === 0 ? '#ff00ff' : '#00ffff');
+            }
+            
+            // Update high score
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('cyberBirdHighScore', highScore.toString());
+                if (tg) tg.HapticFeedback?.notificationOccurred('success');
+            } else {
+                if (tg) tg.HapticFeedback?.notificationOccurred('error');
+            }
+            
+            // Show game over screen
+            document.getElementById('finalScore').textContent = 'SCORE: ' + score;
+            document.getElementById('highScore').textContent = 'BEST: ' + highScore;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+        }
+        
+        function startGame() {
+            gameRunning = true;
+            score = 0;
+            frameCount = 0;
+            pipes = [];
+            pipeTimer = PIPE_SPAWN_INTERVAL;
+            
+            bird.y = canvas.height / 2;
+            bird.velocity = 0;
+            bird.rotation = 0;
+            
+            document.getElementById('score').textContent = '0';
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            
+            if (tg) tg.HapticFeedback?.impactOccurred('medium');
+        }
+        
+        function gameLoop() {
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0a0014');
+            gradient.addColorStop(0.5, '#1a0a2e');
+            gradient.addColorStop(1, '#0a0014');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Scanlines
+            for (let y = 0; y < canvas.height; y += 4) {
+                ctx.globalAlpha = 0.05;
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, y, canvas.width, 2);
+            }
+            ctx.globalAlpha = 1;
+            
+            // Draw elements
+            drawStars();
+            
+            if (gameRunning) {
+                updateBird();
+                updatePipes();
+                updateParticles();
+                frameCount++;
+            }
+            
+            pipes.forEach(drawPipe);
+            drawParticles();
+            drawBird();
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                if (!gameRunning) {
+                    startGame();
+                } else {
+                    flap();
+                }
+            }
+        });
+        
+        canvas.addEventListener('click', () => {
+            if (!gameRunning) {
+                startGame();
+            } else {
+                flap();
+            }
+        });
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (!gameRunning) {
+                startGame();
+            } else {
+                flap();
+            }
+        });
+        
+        // Start
+        gameLoop();
+    </script>
+</body>
+</html>
