@@ -12,7 +12,8 @@ export function getMainMenuKeyboard(): InlineKeyboard {
     .text("🎮 Игры", "menu_games")
     .text("🍿 Что посмотреть?", "menu_movie").row()
     .text("💰 Курсы валют", "menu_currency")
-    .text("😂 Анекдоты", "menu_jokes");
+    .text("😂 Анекдоты", "menu_jokes").row()
+    .text("🔄 Перезапустить бот", "restart_bot");
   
   return keyboard;
 }
@@ -277,5 +278,44 @@ export async function handleComingSoon(ctx: any, feature: string) {
     await ctx.answerCallbackQuery(`⏳ ${feature} скоро будет доступно!`);
   } catch (error) {
     console.error("Error in handleComingSoon:", error);
+  }
+}
+
+// Обработчик перезапуска бота (очистка чата + главное меню)
+export async function handleRestartBot(ctx: any) {
+  try {
+    const userId = ctx.from?.id;
+    const chatId = ctx.chat?.id;
+    
+    if (!userId || !chatId) {
+      await ctx.answerCallbackQuery("❌ Ошибка идентификации");
+      return;
+    }
+    
+    // Сбрасываем состояние пользователя
+    setUserState(userId, BotMode.MainMenu);
+    
+    // Удаляем последние 20 сообщений (включая сообщения бота и пользователя)
+    const currentMessageId = ctx.callbackQuery?.message?.message_id;
+    if (currentMessageId) {
+      for (let i = 0; i < 20; i++) {
+        try {
+          await ctx.api.deleteMessage(chatId, currentMessageId - i);
+        } catch {
+          // Игнорируем ошибки удаления (сообщение может быть уже удалено или недоступно)
+        }
+      }
+    }
+    
+    // Отправляем новое главное меню
+    await ctx.api.sendMessage(chatId, getMainMenuText(), {
+      parse_mode: "HTML",
+      reply_markup: getMainMenuKeyboard(),
+    });
+    
+    await ctx.answerCallbackQuery("✅ Бот перезапущен!");
+  } catch (error) {
+    console.error("Error in handleRestartBot:", error);
+    await ctx.answerCallbackQuery("❌ Ошибка перезапуска");
   }
 }

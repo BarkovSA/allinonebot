@@ -9,6 +9,7 @@ import {
   handleHelp,
   handleImageGenCallback,
   handleComingSoon,
+  handleRestartBot,
 } from "./modules/menu.ts";
 import {
   handleSpaceButton,
@@ -117,6 +118,7 @@ export function createBot(): Bot<BotContext> {
   bot.callbackQuery("menu_currency", handleCurrencyCallback);
   bot.callbackQuery("menu_jokes", handleJokesCallback);
   bot.callbackQuery("back_to_menu", handleMenu);
+  bot.callbackQuery("restart_bot", handleRestartBot);
 
   // Callback queries для генерации изображений
   bot.callbackQuery("image_space", handleSpaceButton);
@@ -189,7 +191,7 @@ export function createBot(): Bot<BotContext> {
   // Обработка геолокации для погоды
   bot.on("message:location", handleWeatherLocation);
 
-  // Обработка голосовых сообщений для напоминаний
+  // Обработка голосовых сообщений
   bot.on("message:voice", handleAlarmVoice);
 
   // Обработка ошибок
