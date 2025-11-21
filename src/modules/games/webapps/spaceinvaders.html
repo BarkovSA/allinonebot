@@ -421,7 +421,7 @@
         let score = 0;
         let level = 1;
         let enemyDirection = 1;
-        let enemySpeed = 1;
+        let enemySpeed = 0.5;
         let gameRunning = false;
         let gameOver = false;
         
@@ -451,7 +451,7 @@
             if (moveDown) {
                 enemyDirection *= -1;
                 enemies.forEach(enemy => {
-                    enemy.y += 20;
+                    enemy.y += 15;
                     if (enemy.y + enemy.height > player.y) {
                         endGame();
                     }
@@ -561,7 +561,7 @@
         
         function nextLevel() {
             level++;
-            enemySpeed += 0.5;
+            enemySpeed += 0.3;
             createEnemies();
             window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
@@ -578,7 +578,7 @@
             powerUps = [];
             score = 0;
             level = 1;
-            enemySpeed = 1;
+            enemySpeed = 0.5;
             enemyDirection = 1;
             createEnemies();
             gameRunning = true;

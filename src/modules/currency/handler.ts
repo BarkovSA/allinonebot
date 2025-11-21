@@ -2,27 +2,9 @@ import { InlineKeyboard } from "grammy";
 import { BotContext } from "../../types.ts";
 import { setUserState, getUserState } from "../../middleware/state.ts";
 import { BotMode } from "../../types.ts";
+import { getExchangeRates, getCryptoPrices, refreshRates } from "./rates.ts";
 
-// Модуль конвертации валют (использует бесплатный API или статические курсы)
-
-// Примерные курсы (в реальности можно использовать https://api.exchangerate-api.com/v4/latest/USD)
-const exchangeRates: Record<string, Record<string, number>> = {
-  USD: { EUR: 0.92, RUB: 92.50, GBP: 0.79, JPY: 149.50, CNY: 7.24 },
-  EUR: { USD: 1.09, RUB: 100.80, GBP: 0.86, JPY: 162.70, CNY: 7.88 },
-  RUB: { USD: 0.011, EUR: 0.0099, GBP: 0.0085, JPY: 1.62, CNY: 0.078 },
-  GBP: { USD: 1.27, EUR: 1.16, RUB: 117.30, JPY: 189.50, CNY: 9.19 },
-};
-
-const cryptoPrices: Record<string, number> = {
-  BTC: 37500, // Bitcoin в USD
-  ETH: 2050, // Ethereum в USD
-  BNB: 310, // Binance Coin в USD
-  SOL: 95, // Solana в USD
-  XRP: 0.62, // Ripple в USD
-  DOGE: 0.085, // Dogecoin в USD
-  TON: 2.15, // Toncoin в USD
-  TRX: 0.10, // Tron в USD
-};
+// Модуль конвертации валют (использует API для актуальных курсов)
 
 const currencySymbols: Record<string, string> = {
   USD: "🇺🇸 $",
@@ -42,6 +24,11 @@ const currencySymbols: Record<string, string> = {
 };
 
 export async function handleCurrencyCallback(ctx: BotContext) {
+  // Обновляем курсы
+  await refreshRates();
+  const exchangeRates = await getExchangeRates();
+  const cryptoPrices = await getCryptoPrices();
+  
   const keyboard = new InlineKeyboard()
     .text("💵 USD → RUB", "currency_usd_rub")
     .text("💶 EUR → RUB", "currency_eur_rub").row()
@@ -106,6 +93,9 @@ async function showCurrencyPair(
   to: string,
   amount = 1
 ) {
+  const exchangeRates = await getExchangeRates();
+  const cryptoPrices = await getCryptoPrices();
+  
   let rate: number;
   let resultText: string;
 
@@ -170,6 +160,8 @@ ${resultText}
 
 // Показать Bitcoin
 export async function handleCurrencyBTC(ctx: BotContext) {
+  const exchangeRates = await getExchangeRates();
+  const cryptoPrices = await getCryptoPrices();
   const btcPrice = cryptoPrices.BTC;
   const btcInRub = btcPrice * exchangeRates.USD.RUB;
 
@@ -226,6 +218,8 @@ export async function handleCurrencyBTC(ctx: BotContext) {
 
 // Показать Ethereum
 export async function handleCurrencyETH(ctx: BotContext) {
+  const exchangeRates = await getExchangeRates();
+  const cryptoPrices = await getCryptoPrices();
   const ethPrice = cryptoPrices.ETH;
   const ethInRub = ethPrice * exchangeRates.USD.RUB;
 
@@ -282,6 +276,8 @@ export async function handleCurrencyETH(ctx: BotContext) {
 
 // Показать TON
 export async function handleCurrencyTON(ctx: BotContext) {
+  const exchangeRates = await getExchangeRates();
+  const cryptoPrices = await getCryptoPrices();
   const tonPrice = cryptoPrices.TON;
   const tonInRub = tonPrice * exchangeRates.USD.RUB;
 
@@ -335,6 +331,8 @@ export async function handleCurrencyTON(ctx: BotContext) {
 
 // Показать Dogecoin
 export async function handleCurrencyDOGE(ctx: BotContext) {
+  const exchangeRates = await getExchangeRates();
+  const cryptoPrices = await getCryptoPrices();
   const dogePrice = cryptoPrices.DOGE;
   const dogeInRub = dogePrice * exchangeRates.USD.RUB;
 
@@ -388,6 +386,9 @@ export async function handleCurrencyDOGE(ctx: BotContext) {
 
 // Показать все курсы
 export async function handleCurrencyAll(ctx: BotContext) {
+  const exchangeRates = await getExchangeRates();
+  const cryptoPrices = await getCryptoPrices();
+  
   const keyboard = new InlineKeyboard()
     .text("🔄 Калькулятор", "currency_calc")
     .text("◀️ Назад", "menu_currency");
