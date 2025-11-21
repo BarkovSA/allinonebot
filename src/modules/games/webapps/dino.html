@@ -42,10 +42,10 @@
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
         
-        const GRAVITY = 0.6;
-        const JUMP_FORCE = -15;
+        const GRAVITY = 0.4;
+        const JUMP_FORCE = -10;
         const GROUND_HEIGHT = 50;
-        const OBSTACLE_SPEED = 6;
+        const OBSTACLE_SPEED = 8;
         
         class Particle {
             constructor(x, y) {
@@ -75,10 +75,10 @@
         
         class Dino {
             constructor() {
-                this.x = 80;
-                this.y = canvas.height - GROUND_HEIGHT - 60;
-                this.width = 50;
-                this.height = 60;
+                this.x = 50;
+                this.y = canvas.height - GROUND_HEIGHT - 70;
+                this.width = 60;
+                this.height = 70;
                 this.velocity = 0;
                 this.isJumping = false;
                 this.isDucking = false;
@@ -180,18 +180,28 @@
         }
         
         class Obstacle {
-            constructor(type) {
+            constructor(type, size = 'medium') {
                 this.x = canvas.width;
                 this.type = type; // 'cactus' or 'bird'
+                this.size = size; // 'small', 'medium', 'large'
                 
                 if (type === 'cactus') {
-                    this.width = 20 + Math.random() * 30;
-                    this.height = 40 + Math.random() * 30;
+                    // Разные размеры кактусов как в оригинале
+                    if (size === 'small') {
+                        this.width = 25;
+                        this.height = 50;
+                    } else if (size === 'medium') {
+                        this.width = 45;
+                        this.height = 60;
+                    } else { // large
+                        this.width = 65;
+                        this.height = 70;
+                    }
                     this.y = canvas.height - GROUND_HEIGHT - this.height;
                 } else {
                     this.width = 40;
                     this.height = 30;
-                    this.y = canvas.height - GROUND_HEIGHT - 80 - Math.random() * 50;
+                    this.y = canvas.height - GROUND_HEIGHT - 80 - Math.random() * 40;
                     this.wingFrame = 0;
                 }
             }
@@ -275,6 +285,45 @@
         let gameRunning = false;
         let gameOverState = false;
         let frameCount = 0;
+        let lastObstacleFrame = 0;
+        
+        function spawnObstacle() {
+            const minInterval = 60; // Минимальный интервал между препятствиями (1 сек)
+            
+            if (frameCount - lastObstacleFrame < minInterval) {
+                return;
+            }
+            
+            const chance = Math.random();
+            
+            // Вероятность спавна как в оригинале
+            if (chance > 0.5) { // 50% шанс на спавн
+                const obstacleType = Math.random() > 0.8 ? 'bird' : 'cactus'; // 80% кактусы, 20% птицы
+                
+                if (obstacleType === 'cactus') {
+                    // Выбираем размер кактуса
+                    const sizeChance = Math.random();
+                    let size;
+                    if (sizeChance > 0.9) {
+                        size = 'large'; // 10%
+                    } else if (sizeChance > 0.7) {
+                        size = 'medium'; // 20%
+                    } else {
+                        size = 'small'; // 70%
+                    }
+                    obstacles.push(new Obstacle('cactus', size));
+                } else {
+                    obstacles.push(new Obstacle('bird'));
+                }
+                
+                lastObstacleFrame = frameCount;
+                
+                // Ограничиваем количество препятствий на экране
+                if (obstacles.length > 5) {
+                    obstacles.shift();
+                }
+            }
+        }
         
         function drawGround() {
             const gradient = ctx.createLinearGradient(0, canvas.height - GROUND_HEIGHT, 0, canvas.height);
@@ -359,6 +408,7 @@
             gameRunning = true;
             gameOverState = false;
             frameCount = 0;
+            lastObstacleFrame = 0;
         }
         
         let keysPressed = {};
@@ -385,10 +435,8 @@
                 frameCount++;
                 score += 0.1;
                 
-                if (frameCount % 120 === 0) {
-                    const obstacleType = Math.random() > 0.7 ? 'bird' : 'cactus';
-                    obstacles.push(new Obstacle(obstacleType));
-                }
+                // Спавн препятствий
+                spawnObstacle();
                 
                 obstacles.forEach((obstacle, index) => {
                     obstacle.update();

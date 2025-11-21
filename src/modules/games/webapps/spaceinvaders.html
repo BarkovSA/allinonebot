@@ -156,7 +156,7 @@
                 this.x = canvas.width / 2 - this.width / 2;
                 this.y = canvas.height - this.height - 20;
                 this.speed = 5;
-                this.lives = 3;
+                this.lives = 5;
                 this.shield = 0;
                 this.rapidFire = 0;
                 this.lastShot = 0;
@@ -459,7 +459,7 @@
             }
             
             // Стрельба врагов
-            if (Math.random() < 0.008 && enemies.length > 0) {
+            if (Math.random() < 0.004 && enemies.length > 0) {
                 const shooter = enemies[Math.floor(Math.random() * enemies.length)];
                 bullets.push(new Bullet(shooter.x + shooter.width / 2, shooter.y + shooter.height, true));
             }
@@ -561,7 +561,7 @@
         
         function nextLevel() {
             level++;
-            enemySpeed += 0.3;
+            enemySpeed += 0.15;
             createEnemies();
             window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
         }
@@ -734,28 +734,7 @@
             keysPressed[e.key] = false;
         });
         
-        let touchStartX = 0;
-        
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            touchStartX = e.touches[0].clientX;
-        });
-        
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touchX = e.touches[0].clientX;
-            const canvasRect = canvas.getBoundingClientRect();
-            player.x = touchX - canvasRect.left - player.width / 2;
-            player.x = Math.max(0, Math.min(canvas.width - player.width, player.x));
-        });
-        
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            if (gameRunning) {
-                bullets.push(new Bullet(player.x + player.width / 2, player.y));
-                window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-            }
-        });
+        // Удалено touch управление с canvas - используйте кнопки!
         
         canvas.addEventListener('click', () => {
             if (!gameRunning && !gameOver) {
@@ -769,6 +748,8 @@
         const btnLeft = document.getElementById('btnLeft');
         const btnRight = document.getElementById('btnRight');
         const btnFire = document.getElementById('btnFire');
+        
+        let fireInterval = null;
         
         btnLeft.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -790,8 +771,7 @@
             keysPressed['ArrowRight'] = false;
         });
         
-        btnFire.addEventListener('touchstart', (e) => {
-            e.preventDefault();
+        function shootBullet() {
             if (!gameRunning && !gameOver) {
                 gameRunning = true;
             } else if (gameOver) {
@@ -804,6 +784,26 @@
                     player.lastShot = now;
                     window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
                 }
+            }
+        }
+        
+        btnFire.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            shootBullet();
+            
+            // Автоматическая стрельба при зажатии
+            if (gameRunning) {
+                fireInterval = setInterval(() => {
+                    shootBullet();
+                }, 200);
+            }
+        });
+        
+        btnFire.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (fireInterval) {
+                clearInterval(fireInterval);
+                fireInterval = null;
             }
         });
         
