@@ -12,7 +12,7 @@
             box-sizing: border-box;
         }
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0f0f23;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -23,46 +23,55 @@
             touch-action: none;
         }
         #gameContainer {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.6), 0 0 40px rgba(102, 126, 234, 0.3);
             text-align: center;
+            border: 2px solid rgba(102, 126, 234, 0.3);
         }
         #score {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
-            color: #667eea;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-bottom: 15px;
+            text-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+            letter-spacing: 2px;
         }
         canvas {
             border: 3px solid #667eea;
-            border-radius: 10px;
-            background: #f0f2f5;
+            border-radius: 12px;
+            background: #0a0a15;
             display: block;
             touch-action: none;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.5), 0 0 30px rgba(102, 126, 234, 0.4);
         }
         #controls {
             margin-top: 20px;
             display: grid;
-            grid-template-columns: repeat(3, 60px);
-            grid-template-rows: repeat(2, 60px);
-            gap: 10px;
+            grid-template-columns: repeat(3, 70px);
+            grid-template-rows: repeat(2, 70px);
+            gap: 12px;
             justify-content: center;
         }
         .btn {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 12px;
+            background: linear-gradient(145deg, #667eea, #764ba2);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 16px;
             color: white;
-            font-size: 24px;
+            font-size: 28px;
             cursor: pointer;
-            transition: transform 0.1s;
+            transition: all 0.2s;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4), inset 0 -2px 8px rgba(0,0,0,0.3);
         }
         .btn:active {
-            transform: scale(0.95);
+            transform: scale(0.92);
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.6), inset 0 2px 8px rgba(0,0,0,0.4);
         }
         #up { grid-column: 2; grid-row: 1; }
         #left { grid-column: 1; grid-row: 2; }
@@ -74,27 +83,43 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: white;
-            padding: 30px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            background: linear-gradient(145deg, #1a1a2e, #16213e);
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 30px 90px rgba(0,0,0,0.8), 0 0 60px rgba(102, 126, 234, 0.5);
             text-align: center;
             z-index: 1000;
+            border: 3px solid rgba(102, 126, 234, 0.4);
         }
         #gameOver h2 {
-            color: #667eea;
-            margin-bottom: 15px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            font-size: 32px;
+            text-shadow: 0 0 30px rgba(239, 68, 68, 0.6);
+        }
+        #gameOver p {
+            color: #e0e0e0;
+            font-size: 22px;
         }
         #restart {
-            margin-top: 20px;
-            padding: 15px 40px;
-            font-size: 18px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            border-radius: 25px;
+            margin-top: 25px;
+            padding: 18px 45px;
+            font-size: 20px;
+            background: linear-gradient(145deg, #667eea, #764ba2);
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 30px;
             color: white;
             cursor: pointer;
             font-weight: bold;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+            transition: all 0.3s;
+        }
+        #restart:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.7);
         }
     </style>
 </head>
@@ -123,6 +148,23 @@
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        // Polyfill для roundRect
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+                this.moveTo(x + r, y);
+                this.lineTo(x + w - r, y);
+                this.quadraticCurveTo(x + w, y, x + w, y + r);
+                this.lineTo(x + w, y + h - r);
+                this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                this.lineTo(x + r, y + h);
+                this.quadraticCurveTo(x, y + h, x, y + h - r);
+                this.lineTo(x, y + r);
+                this.quadraticCurveTo(x, y, x + r, y);
+                return this;
+            };
+        }
+
         const scoreEl = document.getElementById('score');
         const gameOverEl = document.getElementById('gameOver');
         const finalScoreEl = document.getElementById('finalScore');
@@ -135,17 +177,41 @@
         let score = 0;
         let gameRunning = true;
         let speed = 150;
+        let particles = [];
 
         const colors = {
-            snake: '#4ade80',
-            head: '#22c55e',
-            food: '#ef4444',
-            grid: '#e5e7eb'
+            snake: '#10b981',
+            head: '#059669',
+            food: '#f43f5e',
+            grid: 'rgba(102, 126, 234, 0.1)',
+            glow: 'rgba(16, 185, 129, 0.5)'
         };
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.life = 1;
+                this.color = color;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 0.02;
+            }
+            draw() {
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, 4, 4);
+                ctx.globalAlpha = 1;
+            }
+        }
 
         function drawGrid() {
             ctx.strokeStyle = colors.grid;
-            ctx.lineWidth = 0.5;
+            ctx.lineWidth = 1;
             for (let i = 0; i <= tileCount; i++) {
                 ctx.beginPath();
                 ctx.moveTo(i * gridSize, 0);
@@ -160,18 +226,83 @@
 
         function drawSnake() {
             snake.forEach((segment, index) => {
-                ctx.fillStyle = index === 0 ? colors.head : colors.snake;
-                ctx.fillRect(segment.x * gridSize + 1, segment.y * gridSize + 1, gridSize - 2, gridSize - 2);
-                ctx.strokeStyle = 'white';
+                const x = segment.x * gridSize;
+                const y = segment.y * gridSize;
+                
+                // Свечение
+                if (index === 0) {
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = colors.glow;
+                }
+                
+                // Градиент для сегментов
+                const gradient = ctx.createRadialGradient(
+                    x + gridSize/2, y + gridSize/2, 2,
+                    x + gridSize/2, y + gridSize/2, gridSize
+                );
+                gradient.addColorStop(0, index === 0 ? '#14f195' : '#10b981');
+                gradient.addColorStop(1, index === 0 ? colors.head : colors.snake);
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.roundRect(x + 2, y + 2, gridSize - 4, gridSize - 4, 6);
+                ctx.fill();
+                
+                ctx.shadowBlur = 0;
+                
+                // Обводка
+                ctx.strokeStyle = 'rgba(20, 241, 149, 0.6)';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(segment.x * gridSize + 1, segment.y * gridSize + 1, gridSize - 2, gridSize - 2);
+                ctx.stroke();
+                
+                // Глаза для головы
+                if (index === 0) {
+                    ctx.fillStyle = '#fff';
+                    const eyeSize = 3;
+                    const eyeOffset = 6;
+                    if (dx === 1) {
+                        ctx.fillRect(x + gridSize - eyeOffset, y + 5, eyeSize, eyeSize);
+                        ctx.fillRect(x + gridSize - eyeOffset, y + gridSize - 8, eyeSize, eyeSize);
+                    } else if (dx === -1) {
+                        ctx.fillRect(x + eyeOffset - eyeSize, y + 5, eyeSize, eyeSize);
+                        ctx.fillRect(x + eyeOffset - eyeSize, y + gridSize - 8, eyeSize, eyeSize);
+                    } else if (dy === 1) {
+                        ctx.fillRect(x + 5, y + gridSize - eyeOffset, eyeSize, eyeSize);
+                        ctx.fillRect(x + gridSize - 8, y + gridSize - eyeOffset, eyeSize, eyeSize);
+                    } else if (dy === -1) {
+                        ctx.fillRect(x + 5, y + eyeOffset - eyeSize, eyeSize, eyeSize);
+                        ctx.fillRect(x + gridSize - 8, y + eyeOffset - eyeSize, eyeSize, eyeSize);
+                    }
+                }
             });
         }
 
         function drawFood() {
-            ctx.fillStyle = colors.food;
+            const x = food.x * gridSize + gridSize/2;
+            const y = food.y * gridSize + gridSize/2;
+            
+            // Пульсирующее свечение
+            const pulse = Math.sin(Date.now() / 200) * 5 + 15;
+            ctx.shadowBlur = pulse;
+            ctx.shadowColor = colors.food;
+            
+            // Градиент для еды
+            const gradient = ctx.createRadialGradient(x, y, 2, x, y, gridSize/2);
+            gradient.addColorStop(0, '#fca5a5');
+            gradient.addColorStop(0.5, colors.food);
+            gradient.addColorStop(1, '#dc2626');
+            
+            ctx.fillStyle = gradient;
             ctx.beginPath();
-            ctx.arc(food.x * gridSize + gridSize/2, food.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI * 2);
+            ctx.arc(x, y, gridSize/2 - 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            
+            // Блик
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            ctx.arc(x - 3, y - 3, 3, 0, Math.PI * 2);
             ctx.fill();
         }
 
@@ -196,6 +327,16 @@
                 score += 10;
                 scoreEl.textContent = `Счёт: ${score}`;
                 speed = Math.max(50, speed - 5);
+                
+                // Эффект частиц при поедании еды
+                for (let i = 0; i < 15; i++) {
+                    particles.push(new Particle(
+                        food.x * gridSize + gridSize/2,
+                        food.y * gridSize + gridSize/2,
+                        colors.food
+                    ));
+                }
+                
                 generateFood();
                 tg.HapticFeedback.notificationOccurred('success');
             } else {
@@ -222,12 +363,20 @@
         function gameLoop() {
             if (!gameRunning) return;
 
-            ctx.fillStyle = '#f0f2f5';
+            ctx.fillStyle = '#0a0a15';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             drawGrid();
             drawFood();
             drawSnake();
+            
+            // Обновление и отрисовка частиц
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            
             moveSnake();
 
             setTimeout(gameLoop, speed);
