@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>Neon Grind</title>
+    <title>Flappy Bird</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -16,22 +16,11 @@
 
         body {
             margin: 0;
-            font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
-            background: #020409;
-            color: #fafffc;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(180deg, #70c5ce 0%, #97ce4c 100%);
+            color: #fff;
             overflow: hidden;
             touch-action: none;
-        }
-
-        .game-shell {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            background:
-                radial-gradient(circle at 25% 20%, rgba(140, 255, 221, 0.15), transparent 50%),
-                radial-gradient(circle at 80% 10%, rgba(255, 141, 173, 0.18), transparent 40%),
-                linear-gradient(180deg, #050912 0%, #010207 100%);
         }
 
         canvas {
@@ -44,81 +33,23 @@
 
         .hud {
             position: absolute;
-            top: 18px;
-            left: 18px;
-            right: 18px;
+            top: 20px;
+            left: 20px;
+            right: 20px;
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            z-index: 5;
+            align-items: center;
+            z-index: 10;
             pointer-events: none;
         }
 
-        .badge {
-            font-size: clamp(14px, 3vw, 18px);
-            letter-spacing: 0.3em;
-            font-weight: 700;
+        .score {
+            font-size: 24px;
+            font-weight: bold;
         }
 
-        .stats {
-            display: flex;
-            gap: 28px;
-            text-transform: uppercase;
-            font-size: clamp(11px, 2.4vw, 13px);
-        }
-
-        .stats span {
-            display: block;
-            font-size: clamp(22px, 4vw, 34px);
-            color: #84ff9c;
-            letter-spacing: 0.08em;
-        }
-
-        .hint {
-            opacity: 0.75;
-            font-size: clamp(12px, 2.6vw, 16px);
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-        }
-
-        .energy-bar {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 80px;
-            width: min(380px, 70vw);
-            height: 10px;
-            border-radius: 999px;
-            overflow: hidden;
-            background: rgba(255, 255, 255, 0.18);
-            box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45);
-            z-index: 5;
-        }
-
-        .energy-bar__fill {
-            height: 100%;
-            width: 50%;
-            background: linear-gradient(90deg, #84ff9c, #5bb8ff, #ff8adf);
-            transition: width 160ms ease;
-        }
-
-        .hint-bar {
-            position: absolute;
-            bottom: 24px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: min(520px, 90vw);
-            padding: 12px 26px;
-            border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            background: rgba(5, 8, 18, 0.75);
-            backdrop-filter: blur(8px);
-            text-align: center;
-            font-size: clamp(12px, 2.6vw, 16px);
-            letter-spacing: 0.15em;
-            text-transform: uppercase;
-            z-index: 5;
-            pointer-events: none;
+        .best {
+            font-size: 18px;
         }
 
         .overlay {
@@ -127,9 +58,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(2, 4, 9, 0.92);
-            backdrop-filter: blur(18px);
-            z-index: 10;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 20;
             transition: opacity 0.3s ease;
         }
 
@@ -139,107 +69,68 @@
         }
 
         .overlay__card {
-            width: min(420px, 90vw);
-            padding: 38px;
-            border-radius: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(7, 12, 24, 0.95);
-            text-align: left;
-            box-shadow: 0 30px 80px rgba(132, 255, 156, 0.25);
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
 
         .overlay__card h1 {
             margin: 0 0 10px;
-            font-size: 30px;
-            letter-spacing: 0.35em;
-            text-align: center;
+            font-size: 24px;
         }
 
-        .overlay__card h2 {
-            margin: 22px 0 10px;
-            font-size: 15px;
-            letter-spacing: 0.25em;
-        }
-
-        .overlay__card ul {
-            padding-left: 18px;
-            margin: 0;
-            line-height: 1.6;
-            font-size: 15px;
+        .overlay__card p {
+            margin: 0 0 20px;
         }
 
         button {
-            width: 100%;
-            margin-top: 26px;
-            border: none;
-            border-radius: 999px;
-            padding: 15px;
-            font-size: 15px;
-            letter-spacing: 0.35em;
-            font-weight: 700;
-            text-transform: uppercase;
+            padding: 10px 20px;
+            font-size: 16px;
             cursor: pointer;
-            font-family: inherit;
-            background: linear-gradient(120deg, #6fffb2, #7ca6ff, #ff7ed4);
-            color: #04070f;
-            box-shadow: 0 15px 35px rgba(111, 255, 178, 0.35);
+            background: #97ce4c;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
         }
 
         button:active {
             transform: translateY(1px);
         }
 
-        .touch-zone {
-            display: none;
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 10;
+            pointer-events: none;
         }
 
-        @media (pointer: coarse) {
-            .touch-zone {
-                display: block;
-                position: absolute;
-                top: 0;
-                bottom: 0;
-                width: 33.334%;
-                z-index: 8;
-            }
-
-            .touch-zone[data-action="left"] { left: 0; }
-            .touch-zone[data-action="blink"] { left: 33.334%; }
-            .touch-zone[data-action="right"] { right: 0; }
+        .instructions p {
+            margin: 0;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
-    <div class="game-shell">
-        <canvas id="grind" aria-label="Neon Grind lane runner"></canvas>
-        <div class="hud">
-            <div class="badge">NEON · GRIND</div>
-            <div class="stats">
-                <div>FLOW <span id="score">0000</span></div>
-                <div>BEST <span id="best">0000</span></div>
-            </div>
+    <canvas id="flappy" aria-label="Flappy Bird game"></canvas>
+    <div class="hud">
+        <div class="score">Score: <span id="score">0</span></div>
+        <div class="best">Best: <span id="best">0</span></div>
+    </div>
+    <div class="overlay" id="overlay">
+        <div class="overlay__card">
+            <h1>Flappy Bird</h1>
+            <p id="overlayText">Tap to flap and avoid pipes. Get the highest score!</p>
+            <button id="playBtn">Start</button>
         </div>
-        <div class="energy-bar">
-            <div class="energy-bar__fill" id="blinkFill"></div>
-        </div>
-        <div class="hint-bar" id="hint">←/→ — смена полосы · ПРОБЕЛ — блинг на 0.3s</div>
-        <div class="overlay" id="overlay">
-            <div class="overlay__card">
-                <h1>NEON GRIND</h1>
-                <p>Скольжи по трём полосам, уворачивайся от дронов, собирай чипы. Всё просто: держи поток живым.</p>
-                <h2>КАК</h2>
-                <ul>
-                    <li>Лево/Право или свайпы — смещение бордера.</li>
-                    <li>Пробел / тап по центру — блинг (инвиз на 0.3s).</li>
-                    <li>Чипы = +50 и частичный заряд блинг-метра.</li>
-                </ul>
-                <p id="overlayText">Готов? Вытяни максимум из потока.</p>
-                <button id="playBtn">СТАРТ</button>
-            </div>
-        </div>
-        <div class="touch-zone" data-action="left"></div>
-        <div class="touch-zone" data-action="blink"></div>
-        <div class="touch-zone" data-action="right"></div>
+    </div>
+    <div class="instructions">
+        <p>Tap or press Space to flap</p>
     </div>
 
     <script>
@@ -252,412 +143,162 @@
             console.warn('Telegram WebApp unavailable', err);
         }
 
-        const canvas = document.getElementById('grind');
+        const canvas = document.getElementById('flappy');
         const ctx = canvas.getContext('2d');
         const overlay = document.getElementById('overlay');
         const overlayText = document.getElementById('overlayText');
         const playBtn = document.getElementById('playBtn');
         const scoreEl = document.getElementById('score');
         const bestEl = document.getElementById('best');
-        const hintEl = document.getElementById('hint');
-        const blinkFill = document.getElementById('blinkFill');
-        const touchZones = document.querySelectorAll('.touch-zone');
 
-        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-        const randBetween = (min, max) => Math.random() * (max - min) + min;
+        let bird, pipes, score, best, gameState, gravity, jump, pipeWidth, pipeGap, pipeSpeed;
 
-        const SPRITE_SVGS = {
-            rider: `
-                <svg width="96" height="96" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stop-color="#86ffb0"/>
-                            <stop offset="100%" stop-color="#64b7ff"/>
-                        </linearGradient>
-                    </defs>
-                    <circle cx="48" cy="48" r="28" fill="#040a14" stroke="#8effc6" stroke-width="4"/>
-                    <path d="M25 62 L48 70 L71 62" fill="#0f1629" stroke="#f3fba6" stroke-width="3"/>
-                    <circle cx="38" cy="42" r="6" fill="#f7ffde"/>
-                    <circle cx="58" cy="42" r="6" fill="#f7ffde"/>
-                    <rect x="32" y="24" width="32" height="14" rx="7" fill="#111a33" stroke="url(#g)" stroke-width="3"/>
-                    <path d="M30 72 Q48 84 66 72" stroke="#ff89cc" stroke-width="4" fill="none" stroke-linecap="round"/>
-                </svg>
-            `,
-            drone: `
-                <svg width="96" height="96" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="48" cy="48" r="30" fill="#130a1a" stroke="#ff7ed4" stroke-width="6"/>
-                    <circle cx="48" cy="48" r="18" fill="#200b2a" stroke="#6ecbff" stroke-width="4"/>
-                    <circle cx="48" cy="48" r="8" fill="#ffb8f1"/>
-                    <rect x="10" y="44" width="16" height="8" rx="4" fill="#ff7ed4"/>
-                    <rect x="70" y="44" width="16" height="8" rx="4" fill="#6ecbff"/>
-                </svg>
-            `,
-            chip: `
-                <svg width="72" height="72" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="6" y="18" width="60" height="36" rx="10" fill="#132438" stroke="#8fffd3" stroke-width="4"/>
-                    <rect x="18" y="30" width="36" height="12" rx="4" fill="#5bb8ff"/>
-                    <circle cx="36" cy="36" r="6" fill="#fff4a6"/>
-                </svg>
-            `
-        };
-
-        const SPRITES = {};
-        for (const [key, svg] of Object.entries(SPRITE_SVGS)) {
-            const img = new Image();
-            img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg.trim());
-            SPRITES[key] = img;
+        function init() {
+            bird = {
+                x: 50,
+                y: canvas.height / 2,
+                width: 34,
+                height: 24,
+                velocity: 0
+            };
+            pipes = [];
+            score = 0;
+            best = localStorage.getItem('flappyBest') || 0;
+            bestEl.textContent = best;
+            gameState = 'start';
+            gravity = 0.6;
+            jump = -12;
+            pipeWidth = 52;
+            pipeGap = 150;
+            pipeSpeed = 2;
         }
 
-        class Drone {
-            constructor(game) {
-                this.game = game;
-                this.lane = Math.floor(Math.random() * game.lanes.length);
-                this.x = game.laneX(this.lane);
-                this.y = -100;
-                this.speed = game.speed + Math.random() * 120;
-                this.dead = false;
-                this.scale = 0.86 + Math.random() * 0.2;
-            }
-
-            update(dt) {
-                this.y += this.speed * dt;
-                if (this.y > this.game.height + 120) {
-                    this.dead = true;
-                    this.game.addScore(25);
-                }
-            }
-
-            draw() {
-                const size = 96 * this.scale;
-                ctx.drawImage(SPRITES.drone, this.x - size / 2, this.y - size / 2, size, size);
-            }
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
         }
 
-        class Chip {
-            constructor(game) {
-                this.game = game;
-                this.lane = Math.floor(Math.random() * game.lanes.length);
-                this.x = game.laneX(this.lane);
-                this.y = -80;
-                this.speed = game.speed * 0.8;
-                this.dead = false;
-            }
+        window.addEventListener('resize', resize);
+        resize();
 
-            update(dt) {
-                this.y += this.speed * dt;
-                if (this.y > this.game.height + 80) this.dead = true;
-            }
-
-            draw() {
-                ctx.drawImage(SPRITES.chip, this.x - 36, this.y - 36, 72, 72);
-            }
+        function drawBird() {
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(bird.x + 10, bird.y + 5, 4, 4);
+            ctx.fillRect(bird.x + 20, bird.y + 5, 4, 4);
+            ctx.fillStyle = '#ff4500';
+            ctx.fillRect(bird.x + 25, bird.y + 10, 8, 4);
         }
 
-        class NeonGrind {
-            constructor() {
-                this.pixelRatio = window.devicePixelRatio || 1;
-                this.state = 'idle';
-                this.score = 0;
-                this.best = Number(localStorage.getItem('grindBest') || 0);
-                bestEl.textContent = this.best.toString().padStart(4, '0');
+        function drawPipes() {
+            ctx.fillStyle = '#228b22';
+            pipes.forEach(pipe => {
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+                ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipeWidth, pipe.bottom);
+            });
+        }
 
-                this.speed = 460;
-                this.obstacles = [];
-                this.chips = [];
-                this.spawnTimer = 0;
-                this.chipTimer = 2.2;
+        function update() {
+            if (gameState !== 'playing') return;
 
-                this.player = {
-                    lane: 1,
-                    x: 0,
-                    y: 0,
-                    targetX: 0,
-                    blinkCharge: 1,
-                    blinkTimer: 0,
-                    blinkCost: 0.55,
-                    recoverPerSec: 0.35
-                };
+            bird.velocity += gravity;
+            bird.y += bird.velocity;
 
-                this.controls = { left: false, right: false, blink: false };
-
-                window.addEventListener('resize', () => this.resize());
-                document.addEventListener('visibilitychange', () => {
-                    if (document.hidden && this.state === 'playing') this.pause();
-                });
-
-                document.addEventListener('keydown', (e) => this.handleKey(e, true));
-                document.addEventListener('keyup', (e) => this.handleKey(e, false));
-
-                playBtn.addEventListener('click', () => this.start());
-                overlay.addEventListener('click', () => this.start());
-
-                touchZones.forEach((zone) => {
-                    zone.addEventListener('pointerdown', (e) => {
-                        e.preventDefault();
-                        this.setControl(zone.dataset.action, true);
-                        if (zone.dataset.action === 'left') this.shiftLane(-1);
-                        if (zone.dataset.action === 'right') this.shiftLane(1);
-                        if (zone.dataset.action === 'blink') this.tryBlink();
-                    });
-                    zone.addEventListener('pointerup', (e) => {
-                        e.preventDefault();
-                        this.setControl(zone.dataset.action, false);
-                    });
-                    zone.addEventListener('pointerleave', () => this.setControl(zone.dataset.action, false));
-                    zone.addEventListener('pointercancel', () => this.setControl(zone.dataset.action, false));
-                });
-
-                this.resize();
-                this.lastTime = performance.now();
-                requestAnimationFrame((ts) => this.loop(ts));
+            if (bird.y + bird.height > canvas.height || bird.y < 0) {
+                gameOver();
             }
 
-            resize() {
-                this.width = window.innerWidth;
-                this.height = window.innerHeight;
-                canvas.width = this.width * this.pixelRatio;
-                canvas.height = this.height * this.pixelRatio;
-                canvas.style.width = this.width + 'px';
-                canvas.style.height = this.height + 'px';
-                ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
-                this.cx = this.width / 2;
-                this.trackWidth = Math.min(this.width * 0.6, 460);
-                this.laneOffset = this.trackWidth / 3.6;
-                this.lanes = [-this.laneOffset, 0, this.laneOffset];
-                this.player.x = this.laneX(this.player.lane);
-                this.player.targetX = this.player.x;
-                this.player.y = this.height * 0.75;
-            }
-
-            laneX(index) {
-                return this.cx + this.lanes[index];
-            }
-
-            handleKey(e, pressed) {
-                if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
-                    if (pressed) this.shiftLane(-1);
-                    this.setControl('left', pressed);
-                    e.preventDefault();
-                }
-                if (e.code === 'ArrowRight' || e.code === 'KeyD') {
-                    if (pressed) this.shiftLane(1);
-                    this.setControl('right', pressed);
-                    e.preventDefault();
-                }
-                if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
-                    if (pressed) this.tryBlink();
-                    this.setControl('blink', pressed);
-                    e.preventDefault();
-                }
-            }
-
-            setControl(action, pressed) {
-                if (!['left', 'right', 'blink'].includes(action)) return;
-                this.controls[action] = pressed;
-            }
-
-            shiftLane(direction) {
-                if (this.state !== 'playing') return;
-                const newLane = clamp(this.player.lane + direction, 0, this.lanes.length - 1);
-                if (newLane !== this.player.lane) {
-                    this.player.lane = newLane;
-                    this.player.targetX = this.laneX(newLane);
-                    this.haptic('light');
-                }
-            }
-
-            tryBlink() {
-                if (this.state !== 'playing') return;
-                if (this.player.blinkCharge < this.player.blinkCost) return;
-                this.player.blinkCharge = Math.max(0, this.player.blinkCharge - this.player.blinkCost);
-                this.player.blinkTimer = 0.32;
-                this.flashTimer = 0.12;
-                this.haptic('medium');
-            }
-
-            start() {
-                if (this.state === 'playing') return;
-                overlay.classList.add('overlay--hidden');
-                this.state = 'playing';
-                this.score = 0;
-                this.obstacles = [];
-                this.chips = [];
-                this.spawnTimer = 0.8;
-                this.chipTimer = 1.2;
-                this.player.blinkCharge = 1;
-                this.player.blinkTimer = 0;
-                this.player.lane = 1;
-                this.player.x = this.laneX(1);
-                this.player.targetX = this.player.x;
-                this.speed = 460;
-                hintEl.textContent = 'Следи за телеграфами дронов · Чипы = +50 и заряд';
-                playBtn.textContent = 'СТАРТ';
-            }
-
-            pause() {
-                this.state = 'paused';
-                overlay.classList.remove('overlay--hidden');
-                overlayText.textContent = 'Пауза. Не теряй поток.';
-                playBtn.textContent = 'ПРОДОЛЖИТЬ';
-            }
-
-            crash() {
-                if (this.state !== 'playing') return;
-                this.state = 'crashed';
-                overlay.classList.remove('overlay--hidden');
-                overlayText.textContent = `Flow ${Math.floor(this.score)} · Лучший ${this.best}`;
-                playBtn.textContent = 'ЕЩЁ ЗАЕЗД';
-                this.haptic('heavy');
-            }
-
-            addScore(amount) {
-                this.score += amount;
-                scoreEl.textContent = Math.floor(this.score).toString().padStart(4, '0');
-                if (this.score > this.best) {
-                    this.best = Math.floor(this.score);
-                    bestEl.textContent = this.best.toString().padStart(4, '0');
-                    localStorage.setItem('grindBest', this.best.toString());
-                }
-            }
-
-            haptic(type) {
-                try {
-                    tg?.HapticFeedback?.impactOccurred(type);
-                } catch (_) {
-                    // ignore
-                }
-            }
-
-            update(dt) {
-                if (this.state !== 'playing') return;
-
-                this.player.x += (this.player.targetX - this.player.x) * dt * 12;
-                this.player.blinkTimer = Math.max(0, this.player.blinkTimer - dt);
-                this.player.blinkCharge = clamp(this.player.blinkCharge + this.player.recoverPerSec * dt, 0, 1);
-                blinkFill.style.width = `${(this.player.blinkCharge * 100).toFixed(1)}%`;
-
-                this.spawnTimer -= dt;
-                if (this.spawnTimer <= 0) {
-                    this.obstacles.push(new Drone(this));
-                    this.spawnTimer = clamp(1.1 - this.score / 2500, 0.35, 1);
-                }
-
-                this.chipTimer -= dt;
-                if (this.chipTimer <= 0) {
-                    this.chips.push(new Chip(this));
-                    this.chipTimer = randBetween(2.5, 4.5);
-                }
-
-                this.obstacles.forEach((drone) => drone.update(dt));
-                this.obstacles = this.obstacles.filter((d) => !d.dead);
-
-                this.chips.forEach((chip) => chip.update(dt));
-                this.chips = this.chips.filter((c) => !c.dead);
-
-                this.checkCollisions();
-                this.addScore(dt * 12);
-                this.speed = 460 + Math.min(320, this.score * 0.6);
-            }
-
-            checkCollisions() {
-                const px = this.player.x;
-                const py = this.player.y;
-                const blinkActive = this.player.blinkTimer > 0;
-
-                for (const chip of this.chips) {
-                    const dist = Math.hypot(px - chip.x, py - chip.y);
-                    if (dist < 60) {
-                        chip.dead = true;
-                        this.addScore(50);
-                        this.player.blinkCharge = clamp(this.player.blinkCharge + 0.25, 0, 1);
-                        this.haptic('light');
+            pipes.forEach(pipe => {
+                pipe.x -= pipeSpeed;
+                if (pipe.x + pipeWidth < 0) {
+                    pipes.shift();
+                    score++;
+                    scoreEl.textContent = score;
+                    if (score > best) {
+                        best = score;
+                        localStorage.setItem('flappyBest', best);
+                        bestEl.textContent = best;
                     }
                 }
-
-                if (blinkActive) return;
-
-                for (const drone of this.obstacles) {
-                    const dist = Math.hypot(px - drone.x, py - drone.y);
-                    if (dist < 64) {
-                        this.crash();
-                        return;
-                    }
+                if (bird.x < pipe.x + pipeWidth && bird.x + bird.width > pipe.x &&
+                    (bird.y < pipe.top || bird.y + bird.height > canvas.height - pipe.bottom)) {
+                    gameOver();
                 }
-            }
+            });
 
-            render() {
-                this.renderTrack();
-                this.chips.forEach((chip) => chip.draw());
-                this.obstacles.forEach((drone) => drone.draw());
-                this.renderPlayer();
-                this.renderEffects();
-            }
-
-            renderTrack() {
-                ctx.clearRect(0, 0, this.width, this.height);
-                ctx.save();
-                const gradient = ctx.createLinearGradient(0, 0, 0, this.height);
-                gradient.addColorStop(0, 'rgba(10,15,30,0.8)');
-                gradient.addColorStop(1, 'rgba(1,2,6,1)');
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, this.width, this.height);
-
-                ctx.lineWidth = 2;
-                ctx.setLineDash([30, 18]);
-                ctx.lineDashOffset = (performance.now() / 10) % 48;
-                ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-                for (let i = 0; i < this.lanes.length; i++) {
-                    const x = this.laneX(i);
-                    ctx.beginPath();
-                    ctx.moveTo(x, 0);
-                    ctx.lineTo(x, this.height);
-                    ctx.stroke();
-                }
-
-                ctx.restore();
-            }
-
-            renderPlayer() {
-                const size = 96;
-                const alpha = this.player.blinkTimer > 0 ? 0.35 : 1;
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.drawImage(SPRITES.rider, this.player.x - size / 2, this.player.y - size / 2, size, size);
-                ctx.restore();
-
-                if (this.player.blinkTimer > 0) {
-                    ctx.save();
-                    ctx.globalAlpha = 0.2 + Math.sin(performance.now() * 0.02) * 0.2;
-                    ctx.strokeStyle = '#8dfcf0';
-                    ctx.lineWidth = 6;
-                    ctx.beginPath();
-                    ctx.ellipse(this.player.x, this.player.y, 60, 34, 0, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
-                }
-            }
-
-            renderEffects() {
-                if (this.flashTimer && this.flashTimer > 0) {
-                    ctx.save();
-                    ctx.globalAlpha = this.flashTimer * 3;
-                    ctx.fillStyle = '#d8fff6';
-                    ctx.fillRect(0, 0, this.width, this.height);
-                    ctx.restore();
-                    this.flashTimer = Math.max(0, this.flashTimer - 0.016);
-                }
-            }
-
-            loop(timestamp) {
-                const dt = Math.min(0.06, (timestamp - this.lastTime) / 1000);
-                this.lastTime = timestamp;
-                this.update(dt);
-                this.render();
-                requestAnimationFrame((ts) => this.loop(ts));
+            if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 200) {
+                const top = Math.random() * (canvas.height - pipeGap - 50) + 25;
+                const bottom = canvas.height - top - pipeGap;
+                pipes.push({ x: canvas.width, top, bottom });
             }
         }
 
-        new NeonGrind();
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPipes();
+            drawBird();
+        }
+
+        function gameOver() {
+            gameState = 'gameOver';
+            overlay.classList.remove('overlay--hidden');
+            overlayText.textContent = `Game Over! Score: ${score}`;
+            playBtn.textContent = 'Restart';
+            haptic('heavy');
+        }
+
+        function haptic(type) {
+            try {
+                tg?.HapticFeedback?.impactOccurred(type);
+            } catch (_) {
+                // ignore
+            }
+        }
+
+        function flap() {
+            if (gameState === 'playing') {
+                bird.velocity = jump;
+                haptic('light');
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (gameState === 'start' || gameState === 'gameOver') {
+                    startGame();
+                } else {
+                    flap();
+                }
+            }
+        });
+
+        canvas.addEventListener('click', () => {
+            if (gameState === 'start' || gameState === 'gameOver') {
+                startGame();
+            } else {
+                flap();
+            }
+        });
+
+        playBtn.addEventListener('click', startGame);
+
+        function startGame() {
+            init();
+            gameState = 'playing';
+            overlay.classList.add('overlay--hidden');
+            playBtn.textContent = 'Start';
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        loop();
     </script>
 </body>
 </html>
