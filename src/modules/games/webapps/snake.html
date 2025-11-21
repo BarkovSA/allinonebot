@@ -149,6 +149,13 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         
+        // Унифицированный размер
+        const gridSize = 20;
+        const maxSize = Math.min(500, window.innerWidth - 80, window.innerHeight - 220);
+        const tileCount = Math.floor(maxSize / gridSize);
+        canvas.width = tileCount * gridSize;
+        canvas.height = tileCount * gridSize;
+        
         // Polyfill для roundRect
         if (!CanvasRenderingContext2D.prototype.roundRect) {
             CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
@@ -168,9 +175,6 @@
         const scoreEl = document.getElementById('score');
         const gameOverEl = document.getElementById('gameOver');
         const finalScoreEl = document.getElementById('finalScore');
-
-        const gridSize = 20;
-        const tileCount = 20;
         let snake = [{x: 10, y: 10}];
         let food = {x: 15, y: 15};
         let dx = 1, dy = 0;
