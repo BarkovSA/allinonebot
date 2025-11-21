@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Cyber T-Rex Runner</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>T-Rex Runner - Chrome Offline Game</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -13,688 +13,1294 @@
         }
         
         body {
-            background: #000;
+            background: #f7f7f7;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: 'Orbitron', 'Courier New', monospace;
-            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             touch-action: none;
-        }
-        
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: 
-                radial-gradient(circle at 30% 40%, rgba(255, 0, 255, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 70% 60%, rgba(0, 255, 255, 0.15) 0%, transparent 50%);
-            animation: bgShift 8s ease-in-out infinite;
-        }
-        
-        @keyframes bgShift {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-        
-        #gameContainer {
-            position: relative;
-            background: linear-gradient(180deg, #0a0014 0%, #1a0a2e 50%, #0a0014 100%);
-            border-radius: 20px;
-            box-shadow: 
-                0 0 80px rgba(255, 0, 255, 0.5),
-                0 0 120px rgba(0, 255, 255, 0.3),
-                inset 0 0 80px rgba(255, 0, 255, 0.1);
             overflow: hidden;
-            border: 3px solid;
-            border-image: linear-gradient(45deg, #ff00ff, #00ffff) 1;
         }
         
-        canvas {
-            display: block;
+        body.inverted {
+            background: #000;
+            color: #fff;
         }
         
-        #ui {
-            position: absolute;
-            top: 20px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            pointer-events: none;
-            z-index: 10;
+        body.inverted .runner-container {
+            filter: invert(1);
         }
         
-        #score {
-            font-size: 48px;
-            font-weight: bold;
-            color: #00ffff;
-            text-shadow: 
-                0 0 20px #00ffff,
-                0 0 40px #00ffff,
-                0 0 60px #ff00ff;
-            animation: scoreGlow 2s ease-in-out infinite;
+        .interstitial-wrapper {
+            box-sizing: border-box;
+            line-height: 1.6em;
+            margin: 0 auto;
+            max-width: 600px;
+            width: 100%;
+            position: relative;
         }
         
-        @keyframes scoreGlow {
-            0%, 100% { 
-                text-shadow: 
-                    0 0 20px #00ffff,
-                    0 0 40px #00ffff,
-                    0 0 60px #ff00ff;
-            }
-            50% { 
-                text-shadow: 
-                    0 0 10px #00ffff,
-                    0 0 20px #00ffff,
-                    0 0 30px #ff00ff;
-            }
+        .runner-container {
+            height: 150px;
+            max-width: 600px;
+            overflow: hidden;
+            position: relative;
+            transition: opacity .25s;
         }
         
-        #startScreen, #gameOverScreen {
+        .runner-canvas {
+            height: 150px;
+            max-width: 600px;
+            opacity: 1;
+            overflow: hidden;
             position: absolute;
             top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: rgba(10, 0, 20, 0.95);
-            z-index: 15;
-            backdrop-filter: blur(10px);
+            z-index: 2;
+        }
+        
+        .icon {
+            width: 44px;
+            height: 47px;
+            margin: 20px auto;
+            opacity: 0;
+        }
+        
+        .icon-offline {
+            background: #535353;
         }
         
         .hidden {
-            display: none !important;
+            display: none;
         }
         
-        #title {
-            font-size: 56px;
-            font-weight: bold;
-            background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 30px;
-            animation: titlePulse 3s ease-in-out infinite;
+        #offline-resources {
+            display: none;
         }
         
-        @keyframes titlePulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        .subtitle {
-            font-size: 24px;
-            color: #ff00ff;
-            margin-bottom: 40px;
-            text-shadow: 0 0 20px #ff00ff;
-        }
-        
-        .instruction {
-            font-size: 18px;
-            color: #00ffff;
-            text-align: center;
-            line-height: 2;
-            text-shadow: 0 0 10px #00ffff;
-        }
-        
-        #finalScore {
-            font-size: 32px;
-            color: #ffff00;
-            margin: 20px 0;
-            text-shadow: 0 0 20px #ffff00;
-        }
-        
-        #highScore {
-            font-size: 24px;
-            color: #00ff00;
-            margin-bottom: 40px;
-            text-shadow: 0 0 15px #00ff00;
-        }
-        
-        @media (max-width: 600px) {
-            #gameContainer {
-                border-radius: 0;
-                width: 100vw !important;
-                height: 100vh !important;
+        @media (max-width: 700px) {
+            .interstitial-wrapper {
+                padding: 0 10px;
             }
-            
-            #title {
-                font-size: 42px;
+        }
+        
+        @media (max-height: 350px) {
+            .runner-canvas {
+                height: 120px;
             }
-            
-            #score {
-                font-size: 36px;
+            .runner-container {
+                height: 120px;
             }
         }
     </style>
 </head>
-<body>
-    <div id="gameContainer">
-        <div id="ui">
-            <div id="score">0</div>
-        </div>
-        <canvas id="canvas"></canvas>
-        
-        <div id="startScreen">
-            <div id="title">🦖 CYBER T-REX 🦖</div>
-            <div class="subtitle">Endless Neon Runner</div>
-            <div class="instruction">
-                ▶ TAP / SPACE - JUMP<br>
-                ▼ DOWN - DUCK<br>
-                ⚠ AVOID OBSTACLES<br>
-                ━━━━━━━━━━━━━━━━<br>
-                PRESS TO START
-            </div>
+<body id="t" class="offline">
+    <div id="main-frame-error" class="interstitial-wrapper">
+        <div id="main-content">
+            <div class="icon icon-offline" alt=""></div>
         </div>
         
-        <div id="gameOverScreen" class="hidden">
-            <div id="title">⚠ GAME OVER ⚠</div>
-            <div id="finalScore">SCORE: 0</div>
-            <div id="highScore">BEST: 0</div>
-            <div class="instruction">
-                ━━━━━━━━━━━━━━━━<br>
-                PRESS TO RESTART
-            </div>
+        <div id="offline-resources">
+            <img id="offline-resources-1x" src="https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/neterror/resources/images/default_100_percent/offline/100-offline-sprite.png?format=TEXT">
+            <img id="offline-resources-2x" src="https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/neterror/resources/images/default_200_percent/200-offline-sprite.png?format=TEXT">
         </div>
     </div>
 
     <script>
+        // Initialize Telegram WebApp
         const tg = window.Telegram?.WebApp;
         if (tg) {
             tg.ready();
             tg.expand();
+            tg.enableClosingConfirmation();
         }
 
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const container = document.getElementById('gameContainer');
-        
-        function resizeCanvas() {
-            const maxWidth = Math.min(window.innerWidth, 800);
-            const maxHeight = Math.min(window.innerHeight, 500);
-            
-            canvas.width = maxWidth;
-            canvas.height = maxHeight;
-            container.style.width = maxWidth + 'px';
-            container.style.height = maxHeight + 'px';
-        }
-        
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+        // T-Rex Runner Game - Original Chrome implementation
+        // Based on Chromium source code
+        (function() {
+            'use strict';
 
-        // Game constants
-        const GRAVITY = 0.8;
-        const JUMP_POWER = -15;
-        const GROUND_Y = canvas.height - 80;
-        const DINO_X = 80;
-        const OBSTACLE_SPEED = 5;
-        const SPAWN_INTERVAL = 90;
-        
-        // Game state
-        let gameRunning = false;
-        let score = 0;
-        let highScore = parseInt(localStorage.getItem('cyberDinoHighScore') || '0');
-        let frameCount = 0;
-        let gameSpeed = OBSTACLE_SPEED;
-        
-        // Dino
-        const dino = {
-            x: DINO_X,
-            y: GROUND_Y,
-            width: 50,
-            height: 50,
-            velocityY: 0,
-            jumping: false,
-            ducking: false,
-            legFrame: 0
-        };
-        
-        // Obstacles
-        let obstacles = [];
-        let spawnTimer = SPAWN_INTERVAL;
-        
-        // Particles
-        let particles = [];
-        
-        // Background
-        let bgX = 0;
-        
-        function createParticle(x, y, color) {
-            for (let i = 0; i < 3; i++) {
-                particles.push({
-                    x: x,
-                    y: y,
-                    vx: (Math.random() - 0.5) * 4,
-                    vy: (Math.random() - 0.5) * 4,
-                    life: 1,
-                    color: color,
-                    size: Math.random() * 3 + 1
-                });
-            }
-        }
-        
-        function updateParticles() {
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life -= 0.02;
-                p.vx *= 0.98;
-                p.vy *= 0.98;
-                
-                if (p.life <= 0) {
-                    particles.splice(i, 1);
+            const IS_HIDPI = window.devicePixelRatio > 1;
+            const IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
+            const IS_MOBILE = /Android/.test(window.navigator.userAgent) || IS_IOS;
+            const FPS = 60;
+            const DEFAULT_WIDTH = 600;
+
+            // T-Rex config
+            const config = {
+                ACCELERATION: 0.001,
+                BG_CLOUD_SPEED: 0.2,
+                BOTTOM_PAD: 10,
+                CLEAR_TIME: 3000,
+                CLOUD_FREQUENCY: 0.5,
+                GAMEOVER_CLEAR_TIME: 750,
+                GAP_COEFFICIENT: 0.6,
+                GRAVITY: 0.6,
+                INITIAL_JUMP_VELOCITY: -10,
+                INVERT_FADE_DURATION: 12000,
+                INVERT_DISTANCE: 700,
+                MAX_BLINK_COUNT: 3,
+                MAX_CLOUDS: 6,
+                MAX_OBSTACLE_LENGTH: 3,
+                MAX_OBSTACLE_DUPLICATION: 2,
+                MAX_SPEED: 13,
+                MIN_JUMP_HEIGHT: 35,
+                MOBILE_SPEED_COEFFICIENT: 1.2,
+                SPEED: 6,
+                SPEED_DROP_COEFFICIENT: 3
+            };
+
+            class Runner {
+                constructor(containerSelector) {
+                    this.outerContainerEl = document.querySelector(containerSelector);
+                    this.containerEl = null;
+                    this.config = config;
+                    this.dimensions = { WIDTH: DEFAULT_WIDTH, HEIGHT: 150 };
+                    this.canvas = null;
+                    this.ctx = null;
+                    this.tRex = null;
+                    this.distanceMeter = null;
+                    this.distanceRan = 0;
+                    this.highestScore = parseInt(localStorage.getItem('trexHighScore') || '0');
+                    this.time = 0;
+                    this.runningTime = 0;
+                    this.msPerFrame = 1000 / FPS;
+                    this.currentSpeed = this.config.SPEED;
+                    this.obstacles = [];
+                    this.started = false;
+                    this.activated = false;
+                    this.crashed = false;
+                    this.paused = false;
+                    this.inverted = false;
+                    this.invertTimer = 0;
+                    this.playing = false;
+                    this.gameOverPanel = null;
+                    this.horizon = null;
+                    
+                    this.init();
+                }
+
+                init() {
+                    this.adjustDimensions();
+                    this.setSpeed();
+
+                    this.containerEl = document.createElement('div');
+                    this.containerEl.className = 'runner-container';
+
+                    this.canvas = document.createElement('canvas');
+                    this.canvas.className = 'runner-canvas';
+                    this.canvas.width = this.dimensions.WIDTH;
+                    this.canvas.height = this.dimensions.HEIGHT;
+
+                    this.ctx = this.canvas.getContext('2d');
+                    this.ctx.fillStyle = '#f7f7f7';
+                    this.ctx.fill();
+
+                    this.updateCanvasScaling(this.canvas);
+
+                    this.containerEl.appendChild(this.canvas);
+                    this.outerContainerEl.appendChild(this.containerEl);
+
+                    this.horizon = new Horizon(this.canvas, this.dimensions, this.config.GAP_COEFFICIENT);
+                    this.distanceMeter = new DistanceMeter(this.canvas, this.dimensions.WIDTH);
+                    this.tRex = new Trex(this.canvas, this.dimensions.WIDTH / 2);
+
+                    document.querySelector('.icon').style.visibility = 'hidden';
+
+                    this.startListening();
+                    this.update();
+
+                    window.addEventListener('resize', this.debounceResize.bind(this));
+                }
+
+                adjustDimensions() {
+                    const windowHeight = window.innerHeight;
+                    const windowWidth = window.innerWidth;
+
+                    // Responsive sizing
+                    if (windowHeight > windowWidth) {
+                        // Portrait
+                        this.dimensions.WIDTH = Math.min(DEFAULT_WIDTH, windowWidth);
+                        this.dimensions.HEIGHT = 150;
+                    } else {
+                        // Landscape
+                        this.dimensions.WIDTH = Math.min(DEFAULT_WIDTH, windowWidth * 0.9);
+                        this.dimensions.HEIGHT = Math.min(150, windowHeight * 0.3);
+                    }
+                }
+
+                setSpeed(speed) {
+                    const sp = speed || this.currentSpeed;
+                    if (this.dimensions.WIDTH < DEFAULT_WIDTH) {
+                        const mobileSpeed = sp * this.dimensions.WIDTH / DEFAULT_WIDTH * this.config.MOBILE_SPEED_COEFFICIENT;
+                        this.currentSpeed = mobileSpeed > sp ? sp : mobileSpeed;
+                    } else if (speed) {
+                        this.currentSpeed = speed;
+                    }
+                }
+
+                updateCanvasScaling(canvas) {
+                    const context = canvas.getContext('2d');
+                    const devicePixelRatio = Math.floor(window.devicePixelRatio) || 1;
+                    const backingStoreRatio = 1;
+                    const ratio = devicePixelRatio / backingStoreRatio;
+
+                    if (devicePixelRatio !== backingStoreRatio) {
+                        const oldWidth = canvas.width;
+                        const oldHeight = canvas.height;
+
+                        canvas.width = oldWidth * ratio;
+                        canvas.height = oldHeight * ratio;
+                        canvas.style.width = oldWidth + 'px';
+                        canvas.style.height = oldHeight + 'px';
+
+                        context.scale(ratio, ratio);
+                        return true;
+                    }
+                    return false;
+                }
+
+                debounceResize() {
+                    if (!this.resizeTimerId_) {
+                        this.resizeTimerId_ = setTimeout(() => {
+                            this.resizeTimerId_ = null;
+                            this.resize();
+                        }, 250);
+                    }
+                }
+
+                resize() {
+                    this.adjustDimensions();
+                    this.canvas.width = this.dimensions.WIDTH;
+                    this.canvas.height = this.dimensions.HEIGHT;
+                    this.updateCanvasScaling(this.canvas);
+                    
+                    this.distanceMeter.calcXPos(this.dimensions.WIDTH);
+                    this.clearCanvas();
+                    this.horizon.update(0, 0, true);
+                    this.tRex.update(0);
+
+                    if (this.crashed && this.gameOverPanel) {
+                        this.gameOverPanel.updateDimensions(this.dimensions.WIDTH);
+                        this.gameOverPanel.draw();
+                    }
+                }
+
+                clearCanvas() {
+                    this.ctx.clearRect(0, 0, this.dimensions.WIDTH, this.dimensions.HEIGHT);
+                }
+
+                update() {
+                    this.updatePending = false;
+
+                    const now = performance.now();
+                    const deltaTime = now - (this.time || now);
+                    this.time = now;
+
+                    if (this.playing) {
+                        this.clearCanvas();
+
+                        if (this.tRex.jumping) {
+                            this.tRex.updateJump(deltaTime);
+                        }
+
+                        this.runningTime += deltaTime;
+                        const hasObstacles = this.runningTime > this.config.CLEAR_TIME;
+
+                        if (this.tRex.jumpCount === 1 && !this.playingIntro) {
+                            this.playIntro();
+                        }
+
+                        if (this.playingIntro) {
+                            this.horizon.update(0, this.currentSpeed, hasObstacles);
+                        } else {
+                            deltaTime = !this.started ? 0 : deltaTime;
+                            this.horizon.update(deltaTime, this.currentSpeed, hasObstacles, this.inverted);
+                        }
+
+                        let collision = hasObstacles && this.horizon.obstacles.length > 0 && this.checkForCollision(this.horizon.obstacles[0], this.tRex);
+
+                        if (!collision) {
+                            this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
+
+                            if (this.currentSpeed < this.config.MAX_SPEED) {
+                                this.currentSpeed += this.config.ACCELERATION;
+                            }
+                        } else {
+                            this.gameOver();
+                        }
+
+                        const playAchievementSound = this.distanceMeter.update(deltaTime, Math.ceil(this.distanceRan));
+
+                        if (playAchievementSound && tg) {
+                            tg.HapticFeedback?.notificationOccurred('success');
+                        }
+
+                        // Night mode
+                        if (this.invertTimer > this.config.INVERT_FADE_DURATION) {
+                            this.invertTimer = 0;
+                            this.invertTrigger = false;
+                            this.invert();
+                        } else if (this.invertTimer) {
+                            this.invertTimer += deltaTime;
+                        } else {
+                            const actualDistance = this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
+
+                            if (actualDistance > 0) {
+                                this.invertTrigger = !(actualDistance % this.config.INVERT_DISTANCE);
+
+                                if (this.invertTrigger && this.invertTimer === 0) {
+                                    this.invertTimer += deltaTime;
+                                    this.invert();
+                                }
+                            }
+                        }
+                    }
+
+                    if (this.playing || (!this.activated && this.tRex.blinkCount < this.config.MAX_BLINK_COUNT)) {
+                        this.tRex.update(deltaTime);
+                        this.scheduleNextUpdate();
+                    }
+                }
+
+                scheduleNextUpdate() {
+                    if (!this.updatePending) {
+                        this.updatePending = true;
+                        this.raqId = requestAnimationFrame(this.update.bind(this));
+                    }
+                }
+
+                playIntro() {
+                    if (!this.started && !this.crashed) {
+                        this.playingIntro = true;
+                        this.tRex.playingIntro = true;
+
+                        const keyframes = `@keyframes intro { from { width: 44px } to { width: ${this.dimensions.WIDTH}px } }`;
+                        
+                        const sheet = document.createElement('style');
+                        sheet.innerHTML = keyframes;
+                        document.head.appendChild(sheet);
+
+                        this.containerEl.style.animation = 'intro .4s ease-out 1 both';
+                        this.containerEl.style.width = this.dimensions.WIDTH + 'px';
+
+                        this.started = true;
+                    } else if (this.crashed) {
+                        this.restart();
+                    }
+                }
+
+                startGame() {
+                    this.runningTime = 0;
+                    this.playingIntro = false;
+                    this.tRex.playingIntro = false;
+                    this.containerEl.style.animation = '';
+                    this.playing = true;
+                    this.activated = true;
+
+                    if (tg) {
+                        tg.HapticFeedback?.impactOccurred('medium');
+                    }
+                }
+
+                checkForCollision(obstacle, tRex) {
+                    const tRexBox = {
+                        x: tRex.xPos + 1,
+                        y: tRex.yPos + 1,
+                        width: tRex.config.WIDTH - 2,
+                        height: tRex.config.HEIGHT - 2
+                    };
+
+                    const obstacleBox = {
+                        x: obstacle.xPos + 1,
+                        y: obstacle.yPos + 1,
+                        width: obstacle.typeConfig.width * obstacle.size - 2,
+                        height: obstacle.typeConfig.height - 2
+                    };
+
+                    // Simple AABB collision
+                    return tRexBox.x < obstacleBox.x + obstacleBox.width &&
+                           tRexBox.x + tRexBox.width > obstacleBox.x &&
+                           tRexBox.y < obstacleBox.y + obstacleBox.height &&
+                           tRexBox.y + tRexBox.height > obstacleBox.y;
+                }
+
+                gameOver() {
+                    if (tg) {
+                        tg.HapticFeedback?.notificationOccurred('error');
+                    }
+
+                    this.stop();
+                    this.crashed = true;
+                    this.distanceMeter.achievement = false;
+
+                    this.tRex.update(100, Trex.status.CRASHED);
+
+                    if (!this.gameOverPanel) {
+                        this.gameOverPanel = new GameOverPanel(this.canvas, this.dimensions);
+                    } else {
+                        this.gameOverPanel.draw();
+                    }
+
+                    if (this.distanceRan > this.highestScore) {
+                        this.highestScore = Math.ceil(this.distanceRan);
+                        this.distanceMeter.setHighScore(this.highestScore);
+                        localStorage.setItem('trexHighScore', this.highestScore);
+                    }
+
+                    this.time = performance.now();
+                }
+
+                stop() {
+                    this.playing = false;
+                    this.paused = true;
+                    cancelAnimationFrame(this.raqId);
+                    this.raqId = 0;
+                }
+
+                play() {
+                    if (!this.crashed) {
+                        this.playing = true;
+                        this.paused = false;
+                        this.tRex.update(0, Trex.status.RUNNING);
+                        this.time = performance.now();
+                        this.update();
+                    }
+                }
+
+                restart() {
+                    if (!this.raqId) {
+                        this.playCount++;
+                        this.runningTime = 0;
+                        this.playing = true;
+                        this.crashed = false;
+                        this.distanceRan = 0;
+                        this.setSpeed(this.config.SPEED);
+                        this.time = performance.now();
+                        this.containerEl.classList.remove('crashed');
+                        this.clearCanvas();
+                        this.distanceMeter.reset(this.highestScore);
+                        this.horizon.reset();
+                        this.tRex.reset();
+                        this.playSound = false;
+                        this.invertTrigger = false;
+                        this.inverted = false;
+                        this.update();
+
+                        if (tg) {
+                            tg.HapticFeedback?.impactOccurred('medium');
+                        }
+                    }
+                }
+
+                onKeyDown(e) {
+                    if (!this.crashed && [32, 38, 40].indexOf(e.keyCode) > -1) {
+                        e.preventDefault();
+                    }
+
+                    if (!this.playing) {
+                        if (e.keyCode === 32) { // Space
+                            this.playIntro();
+                            e.preventDefault();
+                        }
+                    } else if (!this.crashed) {
+                        if (e.keyCode === 32 || e.keyCode === 38) { // Space or Up
+                            if (!this.tRex.jumping && !this.tRex.ducking) {
+                                if (tg) tg.HapticFeedback?.impactOccurred('light');
+                                this.tRex.startJump(this.currentSpeed);
+                            }
+                        } else if (e.keyCode === 40) { // Down
+                            if (this.tRex.jumping) {
+                                this.tRex.setSpeedDrop();
+                            } else if (!this.tRex.jumping && !this.tRex.ducking) {
+                                this.tRex.setDuck(true);
+                            }
+                        }
+                    } else if (this.crashed) {
+                        const deltaTime = performance.now() - this.time;
+                        if (e.keyCode === 32 && deltaTime >= this.config.GAMEOVER_CLEAR_TIME) {
+                            this.restart();
+                        }
+                    }
+                }
+
+                onKeyUp(e) {
+                    const keyCode = String(e.keyCode);
+                    
+                    if (this.playing && !this.crashed) {
+                        if (keyCode === '32' || keyCode === '38') { // Space or Up
+                            this.tRex.endJump();
+                        } else if (keyCode === '40') { // Down
+                            this.tRex.speedDrop = false;
+                            this.tRex.setDuck(false);
+                        }
+                    }
+                }
+
+                startListening() {
+                    document.addEventListener('keydown', this.onKeyDown.bind(this));
+                    document.addEventListener('keyup', this.onKeyUp.bind(this));
+
+                    if (IS_MOBILE) {
+                        this.canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
+                        this.canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
+                    } else {
+                        this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
+                        this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
+                    }
+                }
+
+                onTouchStart(e) {
+                    e.preventDefault();
+                    
+                    if (!this.playing) {
+                        this.playIntro();
+                    } else if (!this.crashed) {
+                        if (!this.tRex.jumping && !this.tRex.ducking) {
+                            if (tg) tg.HapticFeedback?.impactOccurred('light');
+                            this.tRex.startJump(this.currentSpeed);
+                        }
+                    } else {
+                        const deltaTime = performance.now() - this.time;
+                        if (deltaTime >= this.config.GAMEOVER_CLEAR_TIME) {
+                            this.restart();
+                        }
+                    }
+                }
+
+                onTouchEnd(e) {
+                    e.preventDefault();
+                    if (this.playing && !this.crashed) {
+                        this.tRex.endJump();
+                    }
+                }
+
+                onMouseDown(e) {
+                    this.onTouchStart(e);
+                }
+
+                onMouseUp(e) {
+                    this.onTouchEnd(e);
+                }
+
+                invert() {
+                    if (this.inverted) {
+                        document.body.classList.toggle('inverted', false);
+                        this.inverted = false;
+                    } else {
+                        this.inverted = document.body.classList.toggle('inverted', this.invertTrigger);
+                    }
                 }
             }
-        }
-        
-        function drawParticles() {
-            particles.forEach(p => {
-                ctx.globalAlpha = p.life;
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = p.color;
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, p.size, p.size);
+
+            // T-Rex class
+            class Trex {
+                static get config() {
+                    return {
+                        DROP_VELOCITY: -5,
+                        GRAVITY: 0.6,
+                        HEIGHT: 47,
+                        HEIGHT_DUCK: 25,
+                        INIITAL_JUMP_VELOCITY: -10,
+                        INTRO_DURATION: 1500,
+                        MAX_JUMP_HEIGHT: 30,
+                        MIN_JUMP_HEIGHT: 30,
+                        SPEED_DROP_COEFFICIENT: 3,
+                        SPRITE_WIDTH: 262,
+                        START_X_POS: 50,
+                        WIDTH: 44,
+                        WIDTH_DUCK: 59
+                    };
+                }
+
+                static get status() {
+                    return {
+                        CRASHED: 'CRASHED',
+                        DUCKING: 'DUCKING',
+                        JUMPING: 'JUMPING',
+                        RUNNING: 'RUNNING',
+                        WAITING: 'WAITING'
+                    };
+                }
+
+                constructor(canvas, width) {
+                    this.canvas = canvas;
+                    this.ctx = canvas.getContext('2d');
+                    this.config = Trex.config;
+                    this.xPos = 0;
+                    this.yPos = 0;
+                    this.groundYPos = 0;
+                    this.currentFrame = 0;
+                    this.currentAnimFrames = [];
+                    this.blinkDelay = 0;
+                    this.blinkCount = 0;
+                    this.animStartTime = 0;
+                    this.timer = 0;
+                    this.msPerFrame = 1000 / FPS;
+                    this.status = Trex.status.WAITING;
+                    this.jumping = false;
+                    this.ducking = false;
+                    this.jumpVelocity = 0;
+                    this.reachedMinHeight = false;
+                    this.speedDrop = false;
+                    this.jumpCount = 0;
+                    this.jumpspotX = 0;
+                    this.playingIntro = false;
+
+                    this.groundYPos = 95;
+                    this.yPos = this.groundYPos;
+                    this.minJumpHeight = this.groundYPos - this.config.MIN_JUMP_HEIGHT;
+
+                    this.draw(0, 0);
+                    this.update(0, Trex.status.WAITING);
+                }
+
+                update(deltaTime, opt_status) {
+                    this.timer += deltaTime;
+
+                    if (opt_status) {
+                        this.status = opt_status;
+                        this.currentFrame = 0;
+                        this.msPerFrame = 1000 / FPS;
+                        this.timer = 0;
+                    }
+
+                    if (this.playingIntro && this.xPos < this.config.START_X_POS) {
+                        this.xPos += Math.round((this.config.START_X_POS / this.config.INTRO_DURATION) * deltaTime);
+                    }
+
+                    if (this.status === Trex.status.WAITING) {
+                        this.blink(performance.now());
+                    } else {
+                        this.draw(this.currentAnimFrames[this.currentFrame], 0);
+                    }
+
+                    if (this.timer >= this.msPerFrame) {
+                        this.currentFrame = this.currentFrame === 1 ? 0 : 1;
+                        this.timer = 0;
+                    }
+
+                    if (this.speedDrop && this.yPos === this.groundYPos) {
+                        this.speedDrop = false;
+                        this.setDuck(true);
+                    }
+                }
+
+                draw(x, y) {
+                    const sourceWidth = this.ducking && this.status !== Trex.status.CRASHED ? this.config.WIDTH_DUCK : this.config.WIDTH;
+                    const sourceHeight = this.config.HEIGHT;
+
+                    // Draw placeholder rectangle (sprite sheet not available)
+                    this.ctx.save();
+                    
+                    if (this.status === Trex.status.CRASHED) {
+                        this.ctx.fillStyle = '#535353';
+                    } else {
+                        this.ctx.fillStyle = '#535353';
+                    }
+
+                    if (this.ducking) {
+                        this.ctx.fillRect(this.xPos, this.yPos + 15, this.config.WIDTH_DUCK, this.config.HEIGHT_DUCK);
+                    } else {
+                        // Body
+                        this.ctx.fillRect(this.xPos, this.yPos, this.config.WIDTH, this.config.HEIGHT);
+                        
+                        // Simple leg animation
+                        const legOffset = this.currentFrame === 1 ? 5 : 0;
+                        this.ctx.fillRect(this.xPos + 5, this.yPos + this.config.HEIGHT, 8, 10 + legOffset);
+                        this.ctx.fillRect(this.xPos + 25, this.yPos + this.config.HEIGHT, 8, 10 - legOffset);
+                    }
+
+                    this.ctx.restore();
+                }
+
+                blink(time) {
+                    const deltaTime = time - this.animStartTime;
+
+                    if (deltaTime >= this.blinkDelay) {
+                        this.draw(this.currentFrame, 0);
+
+                        if (this.currentFrame === 1) {
+                            this.setBlinkDelay();
+                            this.blinkCount++;
+                        }
+
+                        this.currentFrame = this.currentFrame === 1 ? 0 : 1;
+                        this.animStartTime = time;
+                    }
+                }
+
+                setBlinkDelay() {
+                    this.blinkDelay = Math.ceil(Math.random() * 3000);
+                }
+
+                startJump(speed) {
+                    if (!this.jumping) {
+                        this.update(0, Trex.status.JUMPING);
+                        this.jumpVelocity = this.config.INIITAL_JUMP_VELOCITY - (speed / 10);
+                        this.jumping = true;
+                        this.reachedMinHeight = false;
+                        this.speedDrop = false;
+                    }
+                }
+
+                endJump() {
+                    if (this.reachedMinHeight && this.jumpVelocity < this.config.DROP_VELOCITY) {
+                        this.jumpVelocity = this.config.DROP_VELOCITY;
+                    }
+                }
+
+                updateJump(deltaTime) {
+                    const msPerFrame = 1000 / FPS;
+                    const framesElapsed = deltaTime / msPerFrame;
+
+                    if (this.speedDrop) {
+                        this.yPos += Math.round(this.jumpVelocity * this.config.SPEED_DROP_COEFFICIENT * framesElapsed);
+                    } else {
+                        this.yPos += Math.round(this.jumpVelocity * framesElapsed);
+                    }
+
+                    this.jumpVelocity += this.config.GRAVITY * framesElapsed;
+
+                    if (this.yPos < this.minJumpHeight || this.speedDrop) {
+                        this.reachedMinHeight = true;
+                    }
+
+                    if (this.yPos < this.config.MAX_JUMP_HEIGHT || this.speedDrop) {
+                        this.endJump();
+                    }
+
+                    if (this.yPos > this.groundYPos) {
+                        this.reset();
+                        this.jumpCount++;
+                    }
+
+                    this.update(deltaTime);
+                }
+
+                setSpeedDrop() {
+                    this.speedDrop = true;
+                    this.jumpVelocity = 1;
+                }
+
+                setDuck(isDucking) {
+                    if (isDucking && this.status !== Trex.status.DUCKING) {
+                        this.update(0, Trex.status.DUCKING);
+                        this.ducking = true;
+                    } else if (this.status === Trex.status.DUCKING) {
+                        this.update(0, Trex.status.RUNNING);
+                        this.ducking = false;
+                    }
+                }
+
+                reset() {
+                    this.yPos = this.groundYPos;
+                    this.jumpVelocity = 0;
+                    this.jumping = false;
+                    this.ducking = false;
+                    this.update(0, Trex.status.RUNNING);
+                    this.speedDrop = false;
+                    this.jumpCount = 0;
+                }
+            }
+
+            // Horizon class
+            class Horizon {
+                constructor(canvas, dimensions, gapCoefficient) {
+                    this.canvas = canvas;
+                    this.ctx = canvas.getContext('2d');
+                    this.config = {
+                        BG_CLOUD_SPEED: 0.2,
+                        CLOUD_FREQUENCY: 0.5,
+                        HORIZON_HEIGHT: 16,
+                        MAX_CLOUDS: 6
+                    };
+                    this.dimensions = dimensions;
+                    this.gapCoefficient = gapCoefficient;
+                    this.obstacles = [];
+                    this.obstacleHistory = [];
+                    this.horizonOffsets = [0, 0];
+                    this.cloudFrequency = this.config.CLOUD_FREQUENCY;
+                    this.clouds = [];
+                    this.cloudSpeed = this.config.BG_CLOUD_SPEED;
+                    this.horizonLine = null;
+                    this.nightMode = null;
+
+                    this.horizonLine = new HorizonLine(this.canvas, this.dimensions);
+                }
+
+                update(deltaTime, currentSpeed, updateObstacles, showNightMode) {
+                    this.horizonLine.update(deltaTime, currentSpeed);
+
+                    if (updateObstacles) {
+                        this.updateObstacles(deltaTime, currentSpeed);
+                    }
+                }
+
+                updateObstacles(deltaTime, currentSpeed) {
+                    const updatedObstacles = this.obstacles.slice(0);
+
+                    for (let i = 0; i < this.obstacles.length; i++) {
+                        const obstacle = this.obstacles[i];
+                        obstacle.update(deltaTime, currentSpeed);
+
+                        if (obstacle.remove) {
+                            updatedObstacles.shift();
+                        }
+                    }
+
+                    this.obstacles = updatedObstacles;
+
+                    if (this.obstacles.length > 0) {
+                        const lastObstacle = this.obstacles[this.obstacles.length - 1];
+
+                        if (lastObstacle && !lastObstacle.followingObstacleCreated && lastObstacle.isVisible() && lastObstacle.xPos + lastObstacle.width + lastObstacle.gap < this.dimensions.WIDTH) {
+                            this.addNewObstacle(currentSpeed);
+                            lastObstacle.followingObstacleCreated = true;
+                        }
+                    } else {
+                        this.addNewObstacle(currentSpeed);
+                    }
+                }
+
+                addNewObstacle(currentSpeed) {
+                    const obstacleTypeIndex = Math.floor(Math.random() * Obstacle.types.length);
+                    const obstacleType = Obstacle.types[obstacleTypeIndex];
+
+                    if (this.duplicateObstacleCheck(obstacleType.type) || currentSpeed < obstacleType.minSpeed) {
+                        this.addNewObstacle(currentSpeed);
+                    } else {
+                        const obstacle = new Obstacle(this.ctx, obstacleType, this.dimensions, this.gapCoefficient, currentSpeed);
+                        
+                        this.obstacles.push(obstacle);
+                        this.obstacleHistory.unshift(obstacleType.type);
+                        
+                        if (this.obstacleHistory.length > 2) {
+                            this.obstacleHistory.splice(2);
+                        }
+                    }
+                }
+
+                duplicateObstacleCheck(nextObstacleType) {
+                    let duplicateCount = 0;
+
+                    for (let i = 0; i < this.obstacleHistory.length; i++) {
+                        duplicateCount = this.obstacleHistory[i] === nextObstacleType ? duplicateCount + 1 : 0;
+                    }
+
+                    return duplicateCount >= config.MAX_OBSTACLE_DUPLICATION;
+                }
+
+                reset() {
+                    this.obstacles = [];
+                    this.horizonLine.reset();
+                }
+            }
+
+            // HorizonLine class
+            class HorizonLine {
+                constructor(canvas, dimensions) {
+                    this.canvas = canvas;
+                    this.ctx = canvas.getContext('2d');
+                    this.dimensions = dimensions;
+                    this.sourceXPos = [0, dimensions.WIDTH];
+                    this.xPos = [0, dimensions.WIDTH];
+                    this.yPos = 127;
+                    this.bumpThreshold = 0.5;
+
+                    this.draw();
+                }
+
+                draw() {
+                    this.ctx.fillStyle = '#535353';
+                    this.ctx.fillRect(0, this.yPos, this.dimensions.WIDTH, 2);
+                }
+
+                update(deltaTime, speed) {
+                    const increment = Math.floor(speed * (FPS / 1000) * deltaTime);
+
+                    if (this.xPos[0] <= 0) {
+                        this.updateXPos(0, increment);
+                    } else {
+                        this.updateXPos(1, increment);
+                    }
+
+                    this.draw();
+                }
+
+                updateXPos(pos, increment) {
+                    const line1 = pos;
+                    const line2 = pos === 0 ? 1 : 0;
+
+                    this.xPos[line1] -= increment;
+                    this.xPos[line2] = this.xPos[line1] + this.dimensions.WIDTH;
+
+                    if (this.xPos[line1] <= -this.dimensions.WIDTH) {
+                        this.xPos[line1] += this.dimensions.WIDTH * 2;
+                        this.xPos[line2] = this.xPos[line1] - this.dimensions.WIDTH;
+                    }
+                }
+
+                reset() {
+                    this.xPos[0] = 0;
+                    this.xPos[1] = this.dimensions.WIDTH;
+                }
+            }
+
+            // Obstacle class
+            class Obstacle {
+                static get types() {
+                    return [
+                        {
+                            type: 'CACTUS_SMALL',
+                            width: 17,
+                            height: 35,
+                            yPos: 105,
+                            multipleSpeed: 4,
+                            minGap: 120,
+                            minSpeed: 0
+                        },
+                        {
+                            type: 'CACTUS_LARGE',
+                            width: 25,
+                            height: 50,
+                            yPos: 90,
+                            multipleSpeed: 7,
+                            minGap: 120,
+                            minSpeed: 0
+                        },
+                        {
+                            type: 'PTERODACTYL',
+                            width: 46,
+                            height: 40,
+                            yPos: [100, 75, 50],
+                            yPosMobile: [100, 50],
+                            multipleSpeed: 999,
+                            minSpeed: 8.5,
+                            minGap: 150,
+                            numFrames: 2,
+                            frameRate: 1000 / 6,
+                            speedOffset: 0.8
+                        }
+                    ];
+                }
+
+                static get MAX_GAP_COEFFICIENT() {
+                    return 1.5;
+                }
+
+                static get MAX_OBSTACLE_LENGTH() {
+                    return 3;
+                }
+
+                constructor(ctx, type, dimensions, gapCoefficient, speed) {
+                    this.ctx = ctx;
+                    this.typeConfig = type;
+                    this.gapCoefficient = gapCoefficient;
+                    this.size = Math.floor(Math.random() * Obstacle.MAX_OBSTACLE_LENGTH) + 1;
+                    this.dimensions = dimensions;
+                    this.remove = false;
+                    this.xPos = dimensions.WIDTH;
+                    this.yPos = 0;
+                    this.width = 0;
+                    this.gap = 0;
+                    this.speedOffset = 0;
+                    this.currentFrame = 0;
+                    this.timer = 0;
+                    this.followingObstacleCreated = false;
+
+                    this.init(speed);
+                }
+
+                init(speed) {
+                    if (this.typeConfig.type === 'PTERODACTYL') {
+                        const yPosArr = IS_MOBILE ? this.typeConfig.yPosMobile : this.typeConfig.yPos;
+                        this.yPos = yPosArr[Math.floor(Math.random() * yPosArr.length)];
+                    } else {
+                        this.yPos = this.typeConfig.yPos;
+                    }
+
+                    this.width = this.typeConfig.width * this.size;
+                    
+                    if (this.typeConfig.speedOffset) {
+                        this.speedOffset = Math.random() > 0.5 ? this.typeConfig.speedOffset : -this.typeConfig.speedOffset;
+                    }
+
+                    this.gap = this.getGap(this.gapCoefficient, speed);
+                    this.draw();
+                }
+
+                draw() {
+                    this.ctx.fillStyle = '#535353';
+                    
+                    if (this.typeConfig.type === 'PTERODACTYL') {
+                        // Simple pterodactyl representation
+                        const wingOffset = this.currentFrame === 1 ? -5 : 5;
+                        this.ctx.fillRect(this.xPos, this.yPos + wingOffset, this.typeConfig.width, this.typeConfig.height);
+                    } else {
+                        // Cactus
+                        this.ctx.fillRect(this.xPos, this.yPos, this.width, this.typeConfig.height);
+                    }
+                }
+
+                update(deltaTime, speed) {
+                    if (!this.remove) {
+                        if (this.typeConfig.speedOffset) {
+                            speed += this.speedOffset;
+                        }
+
+                        this.xPos -= Math.floor((speed * FPS / 1000) * deltaTime);
+
+                        if (this.typeConfig.numFrames) {
+                            this.timer += deltaTime;
+                            if (this.timer >= this.typeConfig.frameRate) {
+                                this.currentFrame = this.currentFrame === this.typeConfig.numFrames - 1 ? 0 : this.currentFrame + 1;
+                                this.timer = 0;
+                            }
+                        }
+
+                        this.draw();
+
+                        if (!this.isVisible()) {
+                            this.remove = true;
+                        }
+                    }
+                }
+
+                getGap(gapCoefficient, speed) {
+                    const minGap = Math.round(this.width * speed + this.typeConfig.minGap * gapCoefficient);
+                    const maxGap = Math.round(minGap * Obstacle.MAX_GAP_COEFFICIENT);
+                    return Math.floor(Math.random() * (maxGap - minGap + 1)) + minGap;
+                }
+
+                isVisible() {
+                    return this.xPos + this.width > 0;
+                }
+            }
+
+            // DistanceMeter class
+            class DistanceMeter {
+                static get config() {
+                    return {
+                        ACHIEVEMENT_DISTANCE: 100,
+                        COEFFICIENT: 0.025,
+                        FLASH_DURATION: 1000 / 4,
+                        FLASH_ITERATIONS: 3,
+                        MAX_DISTANCE_UNITS: 5
+                    };
+                }
+
+                constructor(canvas, canvasWidth) {
+                    this.canvas = canvas;
+                    this.ctx = canvas.getContext('2d');
+                    this.x = 0;
+                    this.y = 5;
+                    this.currentDistance = 0;
+                    this.maxScore = 0;
+                    this.highScore = 0;
+                    this.container = null;
+                    this.digits = [];
+                    this.achievement = false;
+                    this.defaultString = '';
+                    this.flashTimer = 0;
+                    this.flashIterations = 0;
+                    this.config = DistanceMeter.config;
+                    this.maxScoreUnits = this.config.MAX_DISTANCE_UNITS;
+                    
+                    this.init(canvasWidth);
+                }
+
+                init(width) {
+                    let maxDistanceStr = '';
+
+                    this.calcXPos(width);
+                    this.maxScore = this.maxScoreUnits;
+
+                    for (let i = 0; i < this.maxScoreUnits; i++) {
+                        this.draw(i, 0);
+                        this.defaultString += '0';
+                        maxDistanceStr += '9';
+                    }
+
+                    this.maxScore = parseInt(maxDistanceStr);
+                }
+
+                calcXPos(canvasWidth) {
+                    this.x = canvasWidth - (DistanceMeter.config.MAX_DISTANCE_UNITS * 2 * 10);
+                }
+
+                draw(digitPos, value, opt_highScore) {
+                    const sourceWidth = 10;
+                    const sourceHeight = 13;
+                    const sourceX = value * sourceWidth;
+                    const targetX = digitPos * sourceWidth * 2 + this.x;
+                    const targetY = this.y;
+                    const targetWidth = sourceWidth * 2;
+                    const targetHeight = sourceHeight * 2;
+
+                    // Draw number as text (sprite sheet not available)
+                    this.ctx.save();
+                    this.ctx.fillStyle = opt_highScore ? '#787878' : '#535353';
+                    this.ctx.font = '24px monospace';
+                    this.ctx.fillText(value.toString(), targetX, targetY + targetHeight);
+                    this.ctx.restore();
+
+                    if (opt_highScore) {
+                        // Draw HI prefix
+                        this.ctx.save();
+                        this.ctx.fillStyle = '#787878';
+                        this.ctx.font = '24px monospace';
+                        this.ctx.fillText('HI', this.x - 60, this.y + targetHeight);
+                        this.ctx.restore();
+                    }
+                }
+
+                getActualDistance(distance) {
+                    return distance ? Math.round(distance * this.config.COEFFICIENT) : 0;
+                }
+
+                update(deltaTime, distance) {
+                    let paint = true;
+                    let playSound = false;
+
+                    if (!this.achievement) {
+                        distance = this.getActualDistance(distance);
+
+                        if (distance > this.maxScore && this.maxScoreUnits === this.config.MAX_DISTANCE_UNITS) {
+                            this.maxScoreUnits++;
+                            this.maxScore = parseInt(this.maxScore + '9');
+                        } else {
+                            this.distance = 0;
+                        }
+
+                        if (distance > 0) {
+                            if (distance % this.config.ACHIEVEMENT_DISTANCE === 0) {
+                                this.achievement = true;
+                                this.flashTimer = 0;
+                                playSound = true;
+                            }
+
+                            const distanceStr = (this.defaultString + distance).substr(-this.maxScoreUnits);
+                            this.digits = distanceStr.split('');
+                        } else {
+                            this.digits = this.defaultString.split('');
+                        }
+                    } else {
+                        if (this.flashIterations <= this.config.FLASH_ITERATIONS) {
+                            this.flashTimer += deltaTime;
+
+                            if (this.flashTimer < this.config.FLASH_DURATION) {
+                                paint = false;
+                            } else if (this.flashTimer > this.config.FLASH_DURATION * 2) {
+                                this.flashTimer = 0;
+                                this.flashIterations++;
+                            }
+                        } else {
+                            this.achievement = false;
+                            this.flashIterations = 0;
+                            this.flashTimer = 0;
+                        }
+                    }
+
+                    if (paint) {
+                        for (let i = this.digits.length - 1; i >= 0; i--) {
+                            this.draw(i, parseInt(this.digits[i]));
+                        }
+                    }
+
+                    this.drawHighScore();
+                    return playSound;
+                }
+
+                drawHighScore() {
+                    if (this.highScore > 0) {
+                        const distance = this.getActualDistance(Math.ceil(this.highScore));
+                        const highScoreStr = (this.defaultString + distance).substr(-this.maxScoreUnits);
+                        const digits = highScoreStr.split('');
+
+                        this.ctx.save();
+                        this.ctx.globalAlpha = 0.8;
+                        
+                        for (let i = digits.length - 1; i >= 0; i--) {
+                            this.draw(i - (this.maxScoreUnits + 3), parseInt(digits[i]), true);
+                        }
+                        
+                        this.ctx.restore();
+                    }
+                }
+
+                setHighScore(distance) {
+                    distance = this.getActualDistance(distance);
+                    const highScoreStr = (this.defaultString + distance).substr(-this.maxScoreUnits);
+
+                    this.highScore = parseInt(highScoreStr) || 0;
+                }
+
+                reset(highScore) {
+                    this.update(0, 0);
+                    this.achievement = false;
+                    
+                    if (highScore) {
+                        this.setHighScore(highScore);
+                    }
+                }
+            }
+
+            // GameOverPanel class
+            class GameOverPanel {
+                constructor(canvas, dimensions) {
+                    this.canvas = canvas;
+                    this.ctx = canvas.getContext('2d');
+                    this.canvasDimensions = dimensions;
+
+                    this.draw();
+                }
+
+                updateDimensions(width) {
+                    this.canvasDimensions.WIDTH = width;
+                }
+
+                draw() {
+                    const dimensions = {
+                        TEXT_X: 0,
+                        TEXT_Y: 13,
+                        TEXT_WIDTH: 191,
+                        TEXT_HEIGHT: 11,
+                        RESTART_WIDTH: 36,
+                        RESTART_HEIGHT: 32
+                    };
+
+                    const centerX = this.canvasDimensions.WIDTH / 2;
+
+                    // Game Over text
+                    this.ctx.save();
+                    this.ctx.fillStyle = '#535353';
+                    this.ctx.font = 'bold 24px monospace';
+                    const textMetrics = this.ctx.measureText('G A M E  O V E R');
+                    this.ctx.fillText('G A M E  O V E R', centerX - (textMetrics.width / 2), 50);
+                    
+                    // Restart button (simple square)
+                    this.ctx.fillRect(centerX - 18, 70, dimensions.RESTART_WIDTH, dimensions.RESTART_HEIGHT);
+                    
+                    // Arrow in button
+                    this.ctx.fillStyle = '#f7f7f7';
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX, 78);
+                    this.ctx.lineTo(centerX - 10, 94);
+                    this.ctx.lineTo(centerX + 10, 94);
+                    this.ctx.closePath();
+                    this.ctx.fill();
+                    
+                    this.ctx.restore();
+                }
+            }
+
+            // Initialize the game
+            window.addEventListener('load', () => {
+                new Runner('.interstitial-wrapper');
             });
-            ctx.globalAlpha = 1;
-            ctx.shadowBlur = 0;
-        }
-        
-        function drawBackground() {
-            // Moving grid
-            ctx.strokeStyle = '#00ffff';
-            ctx.lineWidth = 1;
-            ctx.globalAlpha = 0.2;
-            
-            // Vertical lines
-            for (let x = bgX % 50; x < canvas.width; x += 50) {
-                ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
-                ctx.stroke();
-            }
-            
-            // Horizontal lines
-            for (let y = 0; y < canvas.height; y += 50) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
-                ctx.stroke();
-            }
-            
-            ctx.globalAlpha = 1;
-            
-            // Ground line
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#00ff00';
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(0, GROUND_Y + dino.height);
-            ctx.lineTo(canvas.width, GROUND_Y + dino.height);
-            ctx.stroke();
-            ctx.shadowBlur = 0;
-        }
-        
-        function drawDino() {
-            const dinoHeight = dino.ducking ? 30 : dino.height;
-            const dinoWidth = dino.ducking ? 60 : dino.width;
-            
-            // Trail effect
-            if (Math.random() < 0.3) {
-                createParticle(dino.x, dino.y + dinoHeight / 2, '#ff00ff');
-            }
-            
-            ctx.save();
-            
-            // Body glow
-            ctx.shadowBlur = 25;
-            ctx.shadowColor = '#ff00ff';
-            
-            // Main body
-            ctx.fillStyle = '#ff00ff';
-            ctx.fillRect(dino.x, dino.y, dinoWidth, dinoHeight);
-            
-            // Inner body
-            ctx.fillStyle = '#800080';
-            ctx.fillRect(dino.x + 5, dino.y + 5, dinoWidth - 10, dinoHeight - 10);
-            
-            if (!dino.ducking) {
-                // Head
-                ctx.fillStyle = '#ff00ff';
-                ctx.fillRect(dino.x + dinoWidth, dino.y, 20, 25);
-                
-                // Eye glow
-                ctx.shadowColor = '#00ffff';
-                ctx.fillStyle = '#00ffff';
-                ctx.fillRect(dino.x + dinoWidth + 5, dino.y + 8, 8, 8);
-            }
-            
-            // Animated legs
-            const legY = dino.y + dinoHeight;
-            const legOffset = Math.floor(dino.legFrame / 5) % 2 === 0 ? 0 : 8;
-            
-            ctx.fillStyle = '#ff00ff';
-            ctx.fillRect(dino.x + 10, legY, 10, 20 + legOffset);
-            ctx.fillRect(dino.x + 30, legY, 10, 20 - legOffset);
-            
-            ctx.restore();
-            ctx.shadowBlur = 0;
-        }
-        
-        function drawObstacle(obs) {
-            ctx.shadowBlur = 25;
-            ctx.shadowColor = '#00ffff';
-            
-            if (obs.type === 'cactus') {
-                // Main column
-                ctx.fillStyle = '#00ffff';
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                
-                // Inner
-                ctx.fillStyle = '#008080';
-                ctx.fillRect(obs.x + 4, obs.y + 4, obs.width - 8, obs.height - 8);
-                
-                // Arms
-                if (obs.arms) {
-                    ctx.fillStyle = '#00ffff';
-                    ctx.fillRect(obs.x - 10, obs.y + 20, 10, 25);
-                    ctx.fillRect(obs.x + obs.width, obs.y + 20, 10, 25);
-                }
-                
-                // Sparks
-                if (Math.random() < 0.1) {
-                    createParticle(obs.x + obs.width / 2, obs.y, '#00ffff');
-                }
-            } else {
-                // Flying obstacle (pterodactyl)
-                const wingY = Math.sin(frameCount * 0.2) * 5;
-                
-                ctx.shadowColor = '#ffff00';
-                ctx.fillStyle = '#ffff00';
-                
-                // Body
-                ctx.fillRect(obs.x + 15, obs.y + 15, 30, 20);
-                
-                // Head
-                ctx.fillRect(obs.x + 45, obs.y + 12, 20, 15);
-                
-                // Wings
-                ctx.fillRect(obs.x, obs.y + wingY, 15, 25);
-                ctx.fillRect(obs.x + 45, obs.y + wingY, 15, 25);
-                
-                // Beak
-                ctx.fillStyle = '#ff0000';
-                ctx.fillRect(obs.x + 65, obs.y + 15, 10, 8);
-                
-                // Trail
-                if (Math.random() < 0.2) {
-                    createParticle(obs.x, obs.y + 20, '#ffff00');
-                }
-            }
-            
-            ctx.shadowBlur = 0;
-        }
-        
-        function spawnObstacle() {
-            const type = Math.random() > 0.3 ? 'cactus' : 'bird';
-            
-            if (type === 'cactus') {
-                obstacles.push({
-                    type: 'cactus',
-                    x: canvas.width,
-                    y: GROUND_Y - 40,
-                    width: 25 + Math.random() * 20,
-                    height: 40 + Math.random() * 30,
-                    arms: Math.random() > 0.5
-                });
-            } else {
-                const heights = [GROUND_Y - 80, GROUND_Y - 120, GROUND_Y - 160];
-                obstacles.push({
-                    type: 'bird',
-                    x: canvas.width,
-                    y: heights[Math.floor(Math.random() * heights.length)],
-                    width: 70,
-                    height: 40
-                });
-            }
-        }
-        
-        function updateDino() {
-            if (gameRunning) {
-                // Gravity
-                if (dino.y < GROUND_Y || dino.velocityY < 0) {
-                    dino.velocityY += GRAVITY;
-                    dino.y += dino.velocityY;
-                }
-                
-                // Ground collision
-                if (dino.y >= GROUND_Y) {
-                    dino.y = GROUND_Y;
-                    dino.velocityY = 0;
-                    dino.jumping = false;
-                }
-                
-                // Leg animation
-                if (!dino.jumping) {
-                    dino.legFrame += gameSpeed;
-                }
-            }
-        }
-        
-        function updateObstacles() {
-            if (gameRunning) {
-                // Spawn
-                if (spawnTimer <= 0) {
-                    spawnObstacle();
-                    spawnTimer = SPAWN_INTERVAL + Math.random() * 40;
-                } else {
-                    spawnTimer--;
-                }
-                
-                // Move and check collision
-                for (let i = obstacles.length - 1; i >= 0; i--) {
-                    const obs = obstacles[i];
-                    obs.x -= gameSpeed;
-                    
-                    // Check collision
-                    const dinoBox = {
-                        x: dino.x + 5,
-                        y: dino.y + 5,
-                        width: (dino.ducking ? 60 : dino.width) - 10,
-                        height: (dino.ducking ? 30 : dino.height) - 10
-                    };
-                    
-                    const obsBox = {
-                        x: obs.x + 5,
-                        y: obs.y + 5,
-                        width: obs.width - 10,
-                        height: obs.height - 10
-                    };
-                    
-                    if (dinoBox.x < obsBox.x + obsBox.width &&
-                        dinoBox.x + dinoBox.width > obsBox.x &&
-                        dinoBox.y < obsBox.y + obsBox.height &&
-                        dinoBox.y + dinoBox.height > obsBox.y) {
-                        gameOver();
-                    }
-                    
-                    // Remove off-screen
-                    if (obs.x + obs.width < 0) {
-                        obstacles.splice(i, 1);
-                        score++;
-                        document.getElementById('score').textContent = score;
-                        if (tg) tg.HapticFeedback?.impactOccurred('light');
-                    }
-                }
-                
-                // Increase speed gradually
-                gameSpeed = Math.min(OBSTACLE_SPEED + score * 0.02, 12);
-            }
-        }
-        
-        function jump() {
-            if (!dino.jumping && dino.y === GROUND_Y) {
-                dino.velocityY = JUMP_POWER;
-                dino.jumping = true;
-                if (tg) tg.HapticFeedback?.impactOccurred('light');
-                createParticle(dino.x + dino.width / 2, dino.y + dino.height, '#ff00ff');
-            }
-        }
-        
-        function duck(isDucking) {
-            if (!dino.jumping) {
-                dino.ducking = isDucking;
-            }
-        }
-        
-        function gameOver() {
-            gameRunning = false;
-            
-            // Explosion
-            for (let i = 0; i < 30; i++) {
-                createParticle(
-                    dino.x + dino.width / 2, 
-                    dino.y + dino.height / 2,
-                    i % 3 === 0 ? '#ff00ff' : i % 3 === 1 ? '#00ffff' : '#ffff00'
-                );
-            }
-            
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('cyberDinoHighScore', highScore.toString());
-                if (tg) tg.HapticFeedback?.notificationOccurred('success');
-            } else {
-                if (tg) tg.HapticFeedback?.notificationOccurred('error');
-            }
-            
-            document.getElementById('finalScore').textContent = 'SCORE: ' + score;
-            document.getElementById('highScore').textContent = 'BEST: ' + highScore;
-            document.getElementById('gameOverScreen').classList.remove('hidden');
-        }
-        
-        function startGame() {
-            gameRunning = true;
-            score = 0;
-            frameCount = 0;
-            gameSpeed = OBSTACLE_SPEED;
-            obstacles = [];
-            spawnTimer = SPAWN_INTERVAL;
-            
-            dino.y = GROUND_Y;
-            dino.velocityY = 0;
-            dino.jumping = false;
-            dino.ducking = false;
-            dino.legFrame = 0;
-            
-            document.getElementById('score').textContent = '0';
-            document.getElementById('startScreen').classList.add('hidden');
-            document.getElementById('gameOverScreen').classList.add('hidden');
-            
-            if (tg) tg.HapticFeedback?.impactOccurred('medium');
-        }
-        
-        function gameLoop() {
-            // Background gradient
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#0a0014');
-            gradient.addColorStop(0.5, '#1a0a2e');
-            gradient.addColorStop(1, '#0a0014');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Scanlines
-            for (let y = 0; y < canvas.height; y += 4) {
-                ctx.globalAlpha = 0.05;
-                ctx.fillStyle = '#000';
-                ctx.fillRect(0, y, canvas.width, 2);
-            }
-            ctx.globalAlpha = 1;
-            
-            // Update background
-            if (gameRunning) {
-                bgX -= gameSpeed * 0.5;
-            }
-            
-            drawBackground();
-            
-            if (gameRunning) {
-                updateDino();
-                updateObstacles();
-                updateParticles();
-                frameCount++;
-            }
-            
-            obstacles.forEach(drawObstacle);
-            drawParticles();
-            drawDino();
-            
-            requestAnimationFrame(gameLoop);
-        }
-        
-        // Controls
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') {
-                e.preventDefault();
-                if (!gameRunning) {
-                    startGame();
-                } else {
-                    jump();
-                }
-            }
-            if (e.code === 'ArrowDown') {
-                e.preventDefault();
-                duck(true);
-            }
-        });
-        
-        document.addEventListener('keyup', (e) => {
-            if (e.code === 'ArrowDown') {
-                e.preventDefault();
-                duck(false);
-            }
-        });
-        
-        canvas.addEventListener('click', () => {
-            if (!gameRunning) {
-                startGame();
-            } else {
-                jump();
-            }
-        });
-        
-        let touchStartY = 0;
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            touchStartY = e.touches[0].clientY;
-            if (!gameRunning) {
-                startGame();
-            } else {
-                jump();
-            }
-        });
-        
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            const touchY = e.touches[0].clientY;
-            if (touchY > touchStartY + 30) {
-                duck(true);
-            }
-        });
-        
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            duck(false);
-        });
-        
-        gameLoop();
+
+        })();
     </script>
 </body>
 </html>
