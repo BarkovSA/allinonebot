@@ -2,391 +2,206 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🏓 Пинг-Понг</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ping Pong</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
+        body {
+            background: #181818;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            text-align: center;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: #0f0f23;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            overflow: hidden;
-            touch-action: none;
         }
-        #gameContainer {
-            background: linear-gradient(145deg, #1a1a2e, #16213e);
-            border-radius: 24px;
-            padding: 24px;
-            box-shadow: 0 25px 80px rgba(0,0,0,0.6), 0 0 40px rgba(102, 126, 234, 0.3);
-            text-align: center;
-            border: 2px solid rgba(102, 126, 234, 0.3);
+        h1 {
+            margin-top: 24px;
+            font-size: 2em;
         }
-        #info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 15px;
-            font-size: 24px;
-            font-weight: bold;
-            color: #e0e0e0;
-            padding: 0 20px;
-        }
-        .score {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        canvas {
-            border: 3px solid #667eea;
-            border-radius: 12px;
-            background: #0a0a15;
+        #pong {
             display: block;
-            touch-action: none;
-            box-shadow: inset 0 0 50px rgba(0,0,0,0.5), 0 0 30px rgba(102, 126, 234, 0.4);
-        }
-        #gameOver, #victory {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: linear-gradient(145deg, #1a1a2e, #16213e);
-            padding: 40px;
-            border-radius: 24px;
-            box-shadow: 0 30px 90px rgba(0,0,0,0.8), 0 0 60px rgba(102, 126, 234, 0.5);
-            text-align: center;
-            z-index: 1000;
-            border: 3px solid rgba(102, 126, 234, 0.4);
-        }
-        #gameOver h2 {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 20px;
-            font-size: 32px;
-        }
-        #victory h2 {
-            background: linear-gradient(135deg, #10b981, #059669);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 20px;
-            font-size: 32px;
-        }
-        #gameOver p, #victory p {
-            color: #e0e0e0;
-            font-size: 22px;
-        }
-        .restart {
-            margin-top: 25px;
-            padding: 18px 45px;
-            font-size: 20px;
-            background: linear-gradient(145deg, #667eea, #764ba2);
-            border: 2px solid rgba(255,255,255,0.2);
-            border-radius: 30px;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
-            transition: all 0.3s;
-        }
-        .restart:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 35px rgba(102, 126, 234, 0.7);
+            margin: 32px auto 0 auto;
+            background: #222;
+            border: 4px solid #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #000;
         }
     </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <div id="info">
-            <div class="score">Вы: <span id="playerScore">0</span></div>
-            <div class="score">AI: <span id="aiScore">0</span></div>
-        </div>
-        <canvas id="gameCanvas"></canvas>
-    </div>
-
-    <div id="gameOver">
-        <h2>💔 Поражение!</h2>
-        <p style="font-size: 20px; margin: 10px 0;">AI победил со счётом <span id="finalScore">0:0</span></p>
-        <button class="restart" onclick="restart()">🔄 Начать заново</button>
-    </div>
-
-    <div id="victory">
-        <h2>🎉 Победа!</h2>
-        <p style="font-size: 20px; margin: 10px 0;">Вы победили со счётом <span id="victoryScore">0:0</span></p>
-        <button class="restart" onclick="restart()">🔄 Новая игра</button>
-    </div>
-
+    <h1>🏓 Ping Pong</h1>
+    <canvas id="pong" width="800" height="500"></canvas>
+    
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.MainButton.hide();
+        // Telegram WebApp
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
 
-        const canvas = document.getElementById('gameCanvas');
+        const canvas = document.getElementById('pong');
         const ctx = canvas.getContext('2d');
-        
-        canvas.width = Math.min(600, window.innerWidth - 80);
-        canvas.height = Math.min(400, window.innerHeight - 220);
 
-        // Игровые объекты
-        const paddle = {
-            width: 12,
-            height: 80,
-            x: 10,
-            y: canvas.height / 2 - 40,
-            dy: 0,
-            speed: 6
+        const WIDTH = canvas.width;
+        const HEIGHT = canvas.height;
+
+        const PADDLE_WIDTH = 15;
+        const PADDLE_HEIGHT = 100;
+        const PADDLE_MARGIN = 20;
+        const PADDLE_SPEED = 5;
+
+        const BALL_SIZE = 16;
+        const BALL_SPEED = 6;
+
+        const leftPaddle = {
+            x: PADDLE_MARGIN,
+            y: HEIGHT / 2 - PADDLE_HEIGHT / 2,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            dy: 0
         };
 
-        const aiPaddle = {
-            width: 12,
-            height: 80,
-            x: canvas.width - 22,
-            y: canvas.height / 2 - 40,
-            speed: 3.5
+        const rightPaddle = {
+            x: WIDTH - PADDLE_MARGIN - PADDLE_WIDTH,
+            y: HEIGHT / 2 - PADDLE_HEIGHT / 2,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            dy: 0
         };
 
         const ball = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            radius: 8,
-            speed: 4,
-            dx: 4,
-            dy: 4
+            x: WIDTH / 2 - BALL_SIZE / 2,
+            y: HEIGHT / 2 - BALL_SIZE / 2,
+            size: BALL_SIZE,
+            speedX: BALL_SPEED * (Math.random() < 0.5 ? 1 : -1),
+            speedY: BALL_SPEED * (Math.random() * 2 - 1)
         };
 
-        let playerScore = 0;
-        let aiScore = 0;
-        let gameRunning = true;
-        const winScore = 5;
-
-        function drawPaddle(p, color) {
-            const gradient = ctx.createLinearGradient(p.x, p.y, p.x + p.width, p.y);
-            gradient.addColorStop(0, color);
-            gradient.addColorStop(1, color + 'aa');
-            
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = color;
-            ctx.fillStyle = gradient;
-            ctx.fillRect(p.x, p.y, p.width, p.height);
-            ctx.shadowBlur = 0;
-            
-            ctx.strokeStyle = color + 'dd';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(p.x, p.y, p.width, p.height);
-        }
-
-        function drawBall() {
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#fbbf24';
-            
-            const gradient = ctx.createRadialGradient(
-                ball.x - 2, ball.y - 2, 2,
-                ball.x, ball.y, ball.radius
-            );
-            gradient.addColorStop(0, '#fef08a');
-            gradient.addColorStop(0.5, '#fbbf24');
-            gradient.addColorStop(1, '#f59e0b');
-            
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-            ctx.fill();
-            
-            ctx.shadowBlur = 0;
-        }
-
-        function drawNet() {
-            ctx.strokeStyle = 'rgba(102, 126, 234, 0.3)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([10, 10]);
-            ctx.beginPath();
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width / 2, canvas.height);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-
-        function movePaddle() {
-            paddle.y += paddle.dy;
-            if (paddle.y < 0) paddle.y = 0;
-            if (paddle.y + paddle.height > canvas.height) {
-                paddle.y = canvas.height - paddle.height;
-            }
-        }
-
-        function moveAI() {
-            const paddleCenter = aiPaddle.y + aiPaddle.height / 2;
-            const ballY = ball.y;
-            
-            // AI с небольшой задержкой реакции
-            if (paddleCenter < ballY - 10) {
-                aiPaddle.y += aiPaddle.speed;
-            } else if (paddleCenter > ballY + 10) {
-                aiPaddle.y -= aiPaddle.speed;
-            }
-            
-            if (aiPaddle.y < 0) aiPaddle.y = 0;
-            if (aiPaddle.y + aiPaddle.height > canvas.height) {
-                aiPaddle.y = canvas.height - aiPaddle.height;
-            }
-        }
-
-        function moveBall() {
-            ball.x += ball.dx;
-            ball.y += ball.dy;
-
-            // Отскок от верхней и нижней стенки
-            if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) {
-                ball.dy *= -1;
-                tg.HapticFeedback.impactOccurred('light');
-            }
-
-            // Столкновение с ракеткой игрока
-            if (ball.x - ball.radius < paddle.x + paddle.width &&
-                ball.y > paddle.y &&
-                ball.y < paddle.y + paddle.height) {
-                
-                const hitPos = (ball.y - paddle.y) / paddle.height;
-                ball.dy = (hitPos - 0.5) * 10;
-                ball.dx = Math.abs(ball.dx);
-                tg.HapticFeedback.impactOccurred('medium');
-            }
-
-            // Столкновение с ракеткой AI
-            if (ball.x + ball.radius > aiPaddle.x &&
-                ball.y > aiPaddle.y &&
-                ball.y < aiPaddle.y + aiPaddle.height) {
-                
-                const hitPos = (ball.y - aiPaddle.y) / aiPaddle.height;
-                ball.dy = (hitPos - 0.5) * 10;
-                ball.dx = -Math.abs(ball.dx);
-                tg.HapticFeedback.impactOccurred('medium');
-            }
-
-            // Гол игрока
-            if (ball.x + ball.radius > canvas.width) {
-                playerScore++;
-                document.getElementById('playerScore').textContent = playerScore;
-                tg.HapticFeedback.notificationOccurred('success');
-                
-                if (playerScore >= winScore) {
-                    victory();
-                } else {
-                    resetBall();
-                }
-            }
-
-            // Гол AI
-            if (ball.x - ball.radius < 0) {
-                aiScore++;
-                document.getElementById('aiScore').textContent = aiScore;
-                tg.HapticFeedback.notificationOccurred('warning');
-                
-                if (aiScore >= winScore) {
-                    endGame();
-                } else {
-                    resetBall();
-                }
-            }
-        }
-
         function resetBall() {
-            ball.x = canvas.width / 2;
-            ball.y = canvas.height / 2;
-            ball.dx = (Math.random() > 0.5 ? 1 : -1) * 4;
-            ball.dy = (Math.random() - 0.5) * 4;
+            ball.x = WIDTH / 2 - BALL_SIZE / 2;
+            ball.y = HEIGHT / 2 - BALL_SIZE / 2;
+            ball.speedX = BALL_SPEED * (Math.random() < 0.5 ? 1 : -1);
+            ball.speedY = BALL_SPEED * (Math.random() * 2 - 1);
         }
 
         function draw() {
-            if (!gameRunning) return;
+            ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-            ctx.fillStyle = '#0a0a15';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            drawNet();
-            drawPaddle(paddle, '#3b82f6');
-            drawPaddle(aiPaddle, '#ef4444');
-            drawBall();
-            
-            movePaddle();
-            moveAI();
-            moveBall();
-
-            requestAnimationFrame(draw);
-        }
-
-        function endGame() {
-            gameRunning = false;
-            document.getElementById('finalScore').textContent = `${playerScore}:${aiScore}`;
-            document.getElementById('gameOver').style.display = 'block';
-            tg.HapticFeedback.notificationOccurred('error');
-        }
-
-        function victory() {
-            gameRunning = false;
-            document.getElementById('victoryScore').textContent = `${playerScore}:${aiScore}`;
-            document.getElementById('victory').style.display = 'block';
-            tg.HapticFeedback.notificationOccurred('success');
-        }
-
-        function restart() {
-            playerScore = 0;
-            aiScore = 0;
-            gameRunning = true;
-            document.getElementById('playerScore').textContent = '0';
-            document.getElementById('aiScore').textContent = '0';
-            document.getElementById('gameOver').style.display = 'none';
-            document.getElementById('victory').style.display = 'none';
-            paddle.y = canvas.height / 2 - 40;
-            aiPaddle.y = canvas.height / 2 - 40;
-            resetBall();
-            draw();
-        }
-
-        // Управление тачем и мышью
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const mouseY = e.clientY - rect.top;
-            paddle.y = mouseY - paddle.height / 2;
-            if (paddle.y < 0) paddle.y = 0;
-            if (paddle.y + paddle.height > canvas.height) {
-                paddle.y = canvas.height - paddle.height;
+            // Draw net
+            ctx.fillStyle = '#444';
+            for (let i = 0; i < HEIGHT; i += 30) {
+                ctx.fillRect(WIDTH/2 - 2, i, 4, 20);
             }
+
+            // Draw left paddle
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(leftPaddle.x, leftPaddle.y, leftPaddle.width, leftPaddle.height);
+
+            // Draw right paddle
+            ctx.fillRect(rightPaddle.x, rightPaddle.y, rightPaddle.width, rightPaddle.height);
+
+            // Draw ball
+            ctx.beginPath();
+            ctx.arc(ball.x + ball.size/2, ball.y + ball.size/2, ball.size/2, 0, Math.PI * 2, false);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+        }
+
+        function update() {
+            ball.x += ball.speedX;
+            ball.y += ball.speedY;
+
+            // Wall collision (top/bottom)
+            if (ball.y <= 0) {
+                ball.y = 0;
+                ball.speedY *= -1;
+            }
+            if (ball.y + ball.size >= HEIGHT) {
+                ball.y = HEIGHT - ball.size;
+                ball.speedY *= -1;
+            }
+
+            // Paddle collision (left)
+            if (
+                ball.x <= leftPaddle.x + leftPaddle.width &&
+                ball.y + ball.size >= leftPaddle.y &&
+                ball.y <= leftPaddle.y + leftPaddle.height
+            ) {
+                ball.x = leftPaddle.x + leftPaddle.width;
+                ball.speedX *= -1;
+                let collidePoint = (ball.y + ball.size/2) - (leftPaddle.y + leftPaddle.height/2);
+                collidePoint = collidePoint / (leftPaddle.height/2);
+                let angle = collidePoint * Math.PI/4;
+                ball.speedY = BALL_SPEED * Math.sin(angle);
+                
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                }
+            }
+
+            // Paddle collision (right)
+            if (
+                ball.x + ball.size >= rightPaddle.x &&
+                ball.y + ball.size >= rightPaddle.y &&
+                ball.y <= rightPaddle.y + rightPaddle.height
+            ) {
+                ball.x = rightPaddle.x - ball.size;
+                ball.speedX *= -1;
+                let collidePoint = (ball.y + ball.size/2) - (rightPaddle.y + rightPaddle.height/2);
+                collidePoint = collidePoint / (rightPaddle.height/2);
+                let angle = collidePoint * Math.PI/4;
+                ball.speedY = BALL_SPEED * Math.sin(angle);
+                
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                }
+            }
+
+            // Point scored
+            if (ball.x < 0 || ball.x > WIDTH) {
+                resetBall();
+            }
+
+            // AI paddle movement
+            if (ball.y + ball.size/2 > rightPaddle.y + rightPaddle.height/2) {
+                rightPaddle.y += PADDLE_SPEED;
+            } else if (ball.y + ball.size/2 < rightPaddle.y + rightPaddle.height/2) {
+                rightPaddle.y -= PADDLE_SPEED;
+            }
+            rightPaddle.y = Math.max(0, Math.min(HEIGHT - rightPaddle.height, rightPaddle.y));
+        }
+
+        // Mouse control
+        canvas.addEventListener('mousemove', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            let mouseY = e.clientY - rect.top;
+            leftPaddle.y = mouseY - leftPaddle.height / 2;
+            if (leftPaddle.y < 0) leftPaddle.y = 0;
+            if (leftPaddle.y + leftPaddle.height > HEIGHT) leftPaddle.y = HEIGHT - leftPaddle.height;
         });
 
-        canvas.addEventListener('touchmove', (e) => {
+        // Touch control
+        canvas.addEventListener('touchmove', function(e) {
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
-            const touchY = e.touches[0].clientY - rect.top;
-            paddle.y = touchY - paddle.height / 2;
-            if (paddle.y < 0) paddle.y = 0;
-            if (paddle.y + paddle.height > canvas.height) {
-                paddle.y = canvas.height - paddle.height;
-            }
+            let touchY = e.touches[0].clientY - rect.top;
+            leftPaddle.y = touchY - leftPaddle.height / 2;
+            if (leftPaddle.y < 0) leftPaddle.y = 0;
+            if (leftPaddle.y + leftPaddle.height > HEIGHT) leftPaddle.y = HEIGHT - leftPaddle.height;
         });
 
-        // Клавиатура
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp') paddle.dy = -paddle.speed;
-            if (e.key === 'ArrowDown') paddle.dy = paddle.speed;
-        });
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
 
-        document.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') paddle.dy = 0;
-        });
-
-        draw();
+        gameLoop();
     </script>
 </body>
 </html>

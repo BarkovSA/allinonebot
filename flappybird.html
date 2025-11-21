@@ -6,392 +6,212 @@
     <title>Flappy Bird</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        * {
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 100%);
+            background: linear-gradient(to bottom, #4ec0ca, #87ceeb);
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            font-family: 'Arial', sans-serif;
-            overflow: hidden;
+            height: 100vh;
         }
         canvas {
-            border: 3px solid #00ffff;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            border: 2px solid #333;
             border-radius: 10px;
-            max-width: 100%;
-            height: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    
+    <canvas id="board"></canvas>
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        canvas.width = Math.min(450, window.innerWidth - 80);
-        canvas.height = Math.min(650, window.innerHeight - 220);
-        
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
-        
-        const GRAVITY = 0.5;
-        const JUMP_FORCE = -9;
-        const PIPE_SPEED = 3;
-        const PIPE_GAP = 200;
-        const PIPE_WIDTH = 80;
-        
-        class Particle {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.vx = (Math.random() - 0.5) * 4;
-                this.vy = (Math.random() - 0.5) * 4;
-                this.life = 1;
-                this.size = Math.random() * 3 + 1;
-                this.color = `hsl(${Math.random() * 60 + 180}, 100%, 60%)`;
-            }
-            
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= 0.02;
-                this.vy += 0.1;
-            }
-            
-            draw() {
-                ctx.save();
-                ctx.globalAlpha = this.life;
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
+        // Telegram WebApp initialization
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
         }
-        
-        class Bird {
-            constructor() {
-                this.x = canvas.width / 4;
-                this.y = canvas.height / 2;
-                this.velocity = 0;
-                this.size = 30;
-                this.rotation = 0;
-            }
-            
-            jump() {
-                this.velocity = JUMP_FORCE;
-                window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-                
-                for (let i = 0; i < 5; i++) {
-                    particles.push(new Particle(this.x, this.y + this.size / 2));
-                }
-            }
-            
-            update() {
-                this.velocity += GRAVITY;
-                this.y += this.velocity;
-                this.rotation = Math.min(Math.max(this.velocity * 2, -30), 90);
-                
-                if (this.y + this.size > canvas.height || this.y < 0) {
-                    gameOver();
-                }
-            }
-            
-            draw() {
-                ctx.save();
-                ctx.translate(this.x, this.y);
-                ctx.rotate(this.rotation * Math.PI / 180);
-                
-                // Птица с градиентом
-                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
-                gradient.addColorStop(0, '#ffff00');
-                gradient.addColorStop(0.5, '#ff9900');
-                gradient.addColorStop(1, '#ff4400');
-                
-                // Тело
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(0, 0, this.size, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Свечение
-                ctx.shadowColor = '#ffaa00';
-                ctx.shadowBlur = 20;
-                ctx.fill();
-                ctx.shadowBlur = 0;
-                
-                // Крыло
-                ctx.fillStyle = '#ff6600';
-                ctx.beginPath();
-                ctx.ellipse(-10, 0, 15, 8, Math.sin(Date.now() / 100) * 0.3, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Глаз
-                ctx.fillStyle = '#ffffff';
-                ctx.beginPath();
-                ctx.arc(8, -8, 6, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.fillStyle = '#000000';
-                ctx.beginPath();
-                ctx.arc(10, -8, 3, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Клюв
-                ctx.fillStyle = '#ff8800';
-                ctx.beginPath();
-                ctx.moveTo(15, 0);
-                ctx.lineTo(25, -3);
-                ctx.lineTo(25, 3);
-                ctx.closePath();
-                ctx.fill();
-                
-                ctx.restore();
-            }
+
+        //board
+        let board;
+        let boardWidth = 360;
+        let boardHeight = 640;
+        let context;
+
+        //bird
+        let birdWidth = 34;
+        let birdHeight = 24;
+        let birdX = boardWidth/8;
+        let birdY = boardHeight/2;
+        let birdImg;
+
+        let bird = {
+            x : birdX,
+            y : birdY,
+            width : birdWidth,
+            height : birdHeight
         }
-        
-        class Pipe {
-            constructor() {
-                this.x = canvas.width;
-                this.gapY = Math.random() * (canvas.height - PIPE_GAP - 100) + 50;
-                this.scored = false;
-            }
-            
-            update() {
-                this.x -= PIPE_SPEED;
-                
-                if (!this.scored && this.x + PIPE_WIDTH < bird.x) {
-                    score++;
-                    this.scored = true;
-                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-                }
-            }
-            
-            draw() {
-                // Верхняя труба
-                const topGradient = ctx.createLinearGradient(this.x, 0, this.x + PIPE_WIDTH, 0);
-                topGradient.addColorStop(0, '#00ffaa');
-                topGradient.addColorStop(0.5, '#00cc88');
-                topGradient.addColorStop(1, '#00aa66');
-                
-                ctx.fillStyle = topGradient;
-                ctx.fillRect(this.x, 0, PIPE_WIDTH, this.gapY);
-                
-                // Свечение верхней трубы
-                ctx.shadowColor = '#00ffaa';
-                ctx.shadowBlur = 15;
-                ctx.fillRect(this.x, 0, PIPE_WIDTH, this.gapY);
-                ctx.shadowBlur = 0;
-                
-                // Нижняя труба
-                const bottomGradient = ctx.createLinearGradient(this.x, this.gapY + PIPE_GAP, this.x + PIPE_WIDTH, this.gapY + PIPE_GAP);
-                bottomGradient.addColorStop(0, '#ff00aa');
-                bottomGradient.addColorStop(0.5, '#cc0088');
-                bottomGradient.addColorStop(1, '#aa0066');
-                
-                ctx.fillStyle = bottomGradient;
-                ctx.fillRect(this.x, this.gapY + PIPE_GAP, PIPE_WIDTH, canvas.height - this.gapY - PIPE_GAP);
-                
-                // Свечение нижней трубы
-                ctx.shadowColor = '#ff00aa';
-                ctx.shadowBlur = 15;
-                ctx.fillRect(this.x, this.gapY + PIPE_GAP, PIPE_WIDTH, canvas.height - this.gapY - PIPE_GAP);
-                ctx.shadowBlur = 0;
-                
-                // Края труб
-                ctx.fillStyle = '#ffffff';
-                ctx.globalAlpha = 0.3;
-                ctx.fillRect(this.x, this.gapY - 20, PIPE_WIDTH, 20);
-                ctx.fillRect(this.x, this.gapY + PIPE_GAP, PIPE_WIDTH, 20);
-                ctx.globalAlpha = 1;
-            }
-            
-            collidesWith(bird) {
-                if (bird.x + bird.size > this.x && bird.x - bird.size < this.x + PIPE_WIDTH) {
-                    if (bird.y - bird.size < this.gapY || bird.y + bird.size > this.gapY + PIPE_GAP) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-        }
-        
-        let bird = new Bird();
-        let pipes = [];
-        let particles = [];
+
+        //pipes
+        let pipeArray = [];
+        let pipeWidth = 64;
+        let pipeHeight = 512;
+        let pipeX = boardWidth;
+        let pipeY = 0;
+
+        let topPipeImg;
+        let bottomPipeImg;
+
+        //physics
+        let velocityX = -2;
+        let velocityY = 0;
+        let gravity = 0.4;
+
+        let gameOver = false;
         let score = 0;
-        let gameRunning = false;
-        let gameOverState = false;
-        let frameCount = 0;
-        
-        function drawBackground() {
-            // Звёзды
-            ctx.fillStyle = '#ffffff';
-            for (let i = 0; i < 50; i++) {
-                const x = (i * 37) % canvas.width;
-                const y = (i * 79) % canvas.height;
-                const size = Math.sin(Date.now() / 1000 + i) * 0.5 + 1;
-                ctx.globalAlpha = Math.sin(Date.now() / 500 + i) * 0.3 + 0.5;
-                ctx.fillRect(x, y, size, size);
+
+        window.onload = function() {
+            board = document.getElementById("board");
+            board.height = boardHeight;
+            board.width = boardWidth;
+            context = board.getContext("2d");
+
+            //load images
+            birdImg = new Image();
+            birdImg.src = "./img/flappybird.png";
+            birdImg.onload = function() {
+                context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
             }
-            ctx.globalAlpha = 1;
+
+            topPipeImg = new Image();
+            topPipeImg.src = "./img/toppipe.png";
+
+            bottomPipeImg = new Image();
+            bottomPipeImg.src = "./img/bottompipe.png";
+
+            requestAnimationFrame(update);
+            setInterval(placePipes, 1500);
+            document.addEventListener("keydown", moveBird);
+            document.addEventListener("click", moveBird);
+            document.addEventListener("touchstart", moveBird);
         }
-        
-        function drawScore() {
-            ctx.font = 'bold 60px Arial';
-            ctx.fillStyle = '#00ffff';
-            ctx.shadowColor = '#00ffff';
-            ctx.shadowBlur = 20;
-            ctx.textAlign = 'center';
-            ctx.fillText(score, canvas.width / 2, 80);
-            ctx.shadowBlur = 0;
-        }
-        
-        function drawStartScreen() {
-            ctx.font = 'bold 40px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.textAlign = 'center';
-            ctx.fillText('FLAPPY BIRD', canvas.width / 2, canvas.height / 2 - 100);
-            
-            ctx.font = '24px Arial';
-            ctx.fillStyle = '#00ffff';
-            ctx.fillText('Нажмите для старта', canvas.width / 2, canvas.height / 2);
-            
-            ctx.font = '18px Arial';
-            ctx.fillStyle = '#ffaa00';
-            ctx.fillText('Избегайте труб!', canvas.width / 2, canvas.height / 2 + 50);
-        }
-        
-        function drawGameOverScreen() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.font = 'bold 50px Arial';
-            ctx.fillStyle = '#ff0000';
-            ctx.shadowColor = '#ff0000';
-            ctx.shadowBlur = 20;
-            ctx.textAlign = 'center';
-            ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 50);
-            ctx.shadowBlur = 0;
-            
-            ctx.font = '30px Arial';
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText('Счёт: ' + score, canvas.width / 2, canvas.height / 2 + 20);
-            
-            ctx.font = '20px Arial';
-            ctx.fillStyle = '#00ffff';
-            ctx.fillText('Нажмите для рестарта', canvas.width / 2, canvas.height / 2 + 80);
-        }
-        
-        function gameOver() {
-            if (!gameOverState) {
-                gameOverState = true;
-                gameRunning = false;
-                window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+
+        function update() {
+            requestAnimationFrame(update);
+            if (gameOver) {
+                return;
+            }
+            context.clearRect(0, 0, board.width, board.height);
+
+            //bird
+            velocityY += gravity;
+            bird.y = Math.max(bird.y + velocityY, 0);
+            context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+
+            if (bird.y > board.height) {
+                gameOver = true;
+            }
+
+            //pipes
+            for (let i = 0; i < pipeArray.length; i++) {
+                let pipe = pipeArray[i];
+                pipe.x += velocityX;
+                context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
+
+                if (!pipe.passed && bird.x > pipe.x + pipe.width) {
+                    score += 0.5;
+                    pipe.passed = true;
+                    
+                    // Haptic feedback
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                    }
+                }
+
+                if (detectCollision(bird, pipe)) {
+                    gameOver = true;
+                    
+                    // Haptic feedback
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                    }
+                }
+            }
+
+            //clear pipes
+            while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
+                pipeArray.shift();
+            }
+
+            //score
+            context.fillStyle = "white";
+            context.font="45px sans-serif";
+            context.fillText(score, 5, 45);
+
+            if (gameOver) {
+                context.fillText("ИГРА ОКОНЧЕНА", 5, 90);
+                context.font="30px sans-serif";
+                context.fillText("Нажмите для рестарта", 5, 130);
             }
         }
-        
-        function resetGame() {
-            bird = new Bird();
-            pipes = [];
-            particles = [];
-            score = 0;
-            gameRunning = true;
-            gameOverState = false;
-            frameCount = 0;
+
+        function placePipes() {
+            if (gameOver) {
+                return;
+            }
+
+            let randomPipeY = pipeY - pipeHeight/4 - Math.random()*(pipeHeight/2);
+            let openingSpace = board.height/4;
+
+            let topPipe = {
+                img : topPipeImg,
+                x : pipeX,
+                y : randomPipeY,
+                width : pipeWidth,
+                height : pipeHeight,
+                passed : false
+            }
+            pipeArray.push(topPipe);
+
+            let bottomPipe = {
+                img : bottomPipeImg,
+                x : pipeX,
+                y : randomPipeY + pipeHeight + openingSpace,
+                width : pipeWidth,
+                height : pipeHeight,
+                passed : false
+            }
+            pipeArray.push(bottomPipe);
         }
-        
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBackground();
-            
-            if (!gameRunning && !gameOverState) {
-                bird.draw();
-                drawStartScreen();
-            } else if (gameRunning) {
-                bird.update();
-                bird.draw();
-                
-                frameCount++;
-                if (frameCount % 90 === 0) {
-                    pipes.push(new Pipe());
+
+        function moveBird(e) {
+            if (e.code == "Space" || e.code == "ArrowUp" || e.code == "KeyX" || e.type == "click" || e.type == "touchstart") {
+                velocityY = -6;
+
+                //reset game
+                if (gameOver) {
+                    bird.y = birdY;
+                    pipeArray = [];
+                    score = 0;
+                    gameOver = false;
                 }
                 
-                pipes.forEach((pipe, index) => {
-                    pipe.update();
-                    pipe.draw();
-                    
-                    if (pipe.collidesWith(bird)) {
-                        gameOver();
-                    }
-                    
-                    if (pipe.x + PIPE_WIDTH < 0) {
-                        pipes.splice(index, 1);
-                    }
-                });
+                // Haptic feedback
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                }
                 
-                particles.forEach((particle, index) => {
-                    particle.update();
-                    particle.draw();
-                    if (particle.life <= 0) {
-                        particles.splice(index, 1);
-                    }
-                });
-                
-                drawScore();
-            } else if (gameOverState) {
-                pipes.forEach(pipe => pipe.draw());
-                bird.draw();
-                drawScore();
-                drawGameOverScreen();
-            }
-            
-            requestAnimationFrame(gameLoop);
-        }
-        
-        canvas.addEventListener('click', () => {
-            if (!gameRunning && !gameOverState) {
-                gameRunning = true;
-            } else if (gameOverState) {
-                resetGame();
-            } else {
-                bird.jump();
-            }
-        });
-        
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (!gameRunning && !gameOverState) {
-                gameRunning = true;
-            } else if (gameOverState) {
-                resetGame();
-            } else {
-                bird.jump();
-            }
-        });
-        
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
                 e.preventDefault();
-                if (!gameRunning && !gameOverState) {
-                    gameRunning = true;
-                } else if (gameOverState) {
-                    resetGame();
-                } else {
-                    bird.jump();
-                }
             }
-        });
-        
-        gameLoop();
+        }
+
+        function detectCollision(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
     </script>
 </body>
 </html>

@@ -1,457 +1,432 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tetris</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: linear-gradient(135deg, #16213e 0%, #0f3460 100%);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: 'Courier New', monospace;
-            overflow: hidden;
-        }
-        #gameContainer {
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-        }
-        canvas {
-            border: 3px solid #e94560;
-            box-shadow: 0 0 30px rgba(233, 69, 96, 0.5);
-            border-radius: 10px;
-        }
-        #info {
-            color: white;
-            min-width: 200px;
-        }
-        .info-block {
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid #e94560;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
-        }
-        .info-title {
-            font-size: 18px;
-            color: #e94560;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px #e94560;
-        }
-        .info-value {
-            font-size: 32px;
-            font-weight: bold;
-            color: #00d9ff;
-            text-shadow: 0 0 10px #00d9ff;
-        }
-        #nextPiece {
-            border: 2px solid #00d9ff;
-            border-radius: 5px;
-            background: rgba(0, 0, 0, 0.3);
-        }
-        .controls {
-            font-size: 12px;
-            color: #aaa;
-            line-height: 1.6;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tetris</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body { 
+      font-family: Helvetica, sans-serif; 
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    #tetris { 
+      margin: 1em auto; 
+      padding: 1em; 
+      border: 4px solid black; 
+      border-radius: 10px; 
+      background-color: #F8F8F8; 
+    }
+    #stats { display: inline-block; vertical-align: top; }
+    #canvas { 
+      display: inline-block; 
+      vertical-align: top; 
+      background: #1a1a2e; 
+      box-shadow: 10px 10px 10px #999; 
+      border: 2px solid #333; 
+    }
+    #menu { display: inline-block; vertical-align: top; position: relative; }
+    #menu p { margin: 0.5em 0; text-align: center; }
+    #menu p a { text-decoration: none; color: black; }
+    #upcoming { display: block; margin: 0 auto; background-color: #E0E0E0; }
+    #score { color: red; font-weight: bold; vertical-align: middle; }
+    #rows { color: blue; font-weight: bold; vertical-align: middle; }
+    #stats { position: absolute; bottom: 0em; right: 1em; }
+    @media screen and (min-width: 0px) and (min-height: 0px) { 
+      #tetris { font-size: 0.75em; width: 250px; } 
+      #menu { width: 100px; height: 200px; } 
+      #upcoming { width: 50px; height: 50px; } 
+      #canvas { width: 100px; height: 200px; } 
+    }
+    @media screen and (min-width: 400px) and (min-height: 400px) { 
+      #tetris { font-size: 1.00em; width: 350px; } 
+      #menu { width: 150px; height: 300px; } 
+      #upcoming { width: 75px; height: 75px; } 
+      #canvas { width: 150px; height: 300px; } 
+    }
+    @media screen and (min-width: 500px) and (min-height: 500px) { 
+      #tetris { font-size: 1.25em; width: 450px; } 
+      #menu { width: 200px; height: 400px; } 
+      #upcoming { width: 100px; height: 100px; } 
+      #canvas { width: 200px; height: 400px; } 
+    }
+  </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        <div id="info">
-            <div class="info-block">
-                <div class="info-title">СЧЁТ</div>
-                <div class="info-value" id="score">0</div>
-            </div>
-            <div class="info-block">
-                <div class="info-title">УРОВЕНЬ</div>
-                <div class="info-value" id="level">1</div>
-            </div>
-            <div class="info-block">
-                <div class="info-title">ЛИНИИ</div>
-                <div class="info-value" id="lines">0</div>
-            </div>
-            <div class="info-block">
-                <div class="info-title">СЛЕДУЮЩАЯ</div>
-                <canvas id="nextPiece" width="100" height="100"></canvas>
-            </div>
-            <div class="info-block controls">
-                <div class="info-title">УПРАВЛЕНИЕ</div>
-                ← → : Движение<br>
-                ↑ : Поворот<br>
-                ↓ : Ускорение<br>
-                Пробел : Сброс
-            </div>
-        </div>
+  <div id="tetris">
+    <div id="menu">
+      <p id="start"><a href="javascript:play();">Нажмите Пробел</a></p>
+      <p><canvas id="upcoming"></canvas></p>
+      <p>Счёт <span id="score">00000</span></p>
+      <p>Линий <span id="rows">0</span></p>
     </div>
-    
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const nextCanvas = document.getElementById('nextPiece');
-        const nextCtx = nextCanvas.getContext('2d');
-        
-        const COLS = 10;
-        const ROWS = 20;
-        const maxHeight = Math.min(600, window.innerHeight - 220);
-        const BLOCK_SIZE = Math.min(30, Math.floor(maxHeight / ROWS));
-        
-        canvas.width = COLS * BLOCK_SIZE;
-        canvas.height = ROWS * BLOCK_SIZE;
-        
-        window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
-        
-        const COLORS = [
-            null,
-            '#ff0d72', // I
-            '#0dc2ff', // J
-            '#0dff72', // L
-            '#f538ff', // O
-            '#ff8e0d', // S
-            '#ffe138', // T
-            '#3877ff'  // Z
-        ];
-        
-        const SHAPES = [
-            [],
-            [[1,1,1,1]], // I
-            [[2,0,0],[2,2,2]], // J
-            [[0,0,3],[3,3,3]], // L
-            [[4,4],[4,4]], // O
-            [[0,5,5],[5,5,0]], // S
-            [[0,6,0],[6,6,6]], // T
-            [[7,7,0],[0,7,7]]  // Z
-        ];
-        
-        class Piece {
-            constructor(type) {
-                this.type = type || Math.floor(Math.random() * 7) + 1;
-                this.shape = SHAPES[this.type];
-                this.color = COLORS[this.type];
-                this.x = Math.floor(COLS / 2) - Math.floor(this.shape[0].length / 2);
-                this.y = 0;
-            }
-            
-            draw(context, offsetX = 0, offsetY = 0, blockSize = BLOCK_SIZE) {
-                this.shape.forEach((row, y) => {
-                    row.forEach((value, x) => {
-                        if (value) {
-                            const px = (this.x + x + offsetX) * blockSize;
-                            const py = (this.y + y + offsetY) * blockSize;
-                            
-                            // Градиент
-                            const gradient = context.createLinearGradient(px, py, px + blockSize, py + blockSize);
-                            gradient.addColorStop(0, this.color);
-                            gradient.addColorStop(1, this.darkenColor(this.color));
-                            
-                            context.fillStyle = gradient;
-                            context.fillRect(px, py, blockSize, blockSize);
-                            
-                            // Свечение
-                            context.shadowColor = this.color;
-                            context.shadowBlur = 15;
-                            context.fillRect(px, py, blockSize, blockSize);
-                            context.shadowBlur = 0;
-                            
-                            // Граница
-                            context.strokeStyle = this.lightenColor(this.color);
-                            context.lineWidth = 2;
-                            context.strokeRect(px + 1, py + 1, blockSize - 2, blockSize - 2);
-                        }
-                    });
-                });
-            }
-            
-            darkenColor(color) {
-                const r = parseInt(color.slice(1,3), 16);
-                const g = parseInt(color.slice(3,5), 16);
-                const b = parseInt(color.slice(5,7), 16);
-                return `rgb(${r*0.6},${g*0.6},${b*0.6})`;
-            }
-            
-            lightenColor(color) {
-                const r = parseInt(color.slice(1,3), 16);
-                const g = parseInt(color.slice(3,5), 16);
-                const b = parseInt(color.slice(5,7), 16);
-                return `rgb(${Math.min(255,r*1.4)},${Math.min(255,g*1.4)},${Math.min(255,b*1.4)})`;
-            }
-            
-            rotate() {
-                const newShape = this.shape[0].map((_, i) => 
-                    this.shape.map(row => row[i]).reverse()
-                );
-                
-                const oldShape = this.shape;
-                this.shape = newShape;
-                
-                if (this.collides()) {
-                    this.shape = oldShape;
-                } else {
-                    window.Telegram.WebApp.HapticFeedback.impactOccurred('light');
-                }
-            }
-            
-            move(dx, dy) {
-                this.x += dx;
-                this.y += dy;
-                
-                if (this.collides()) {
-                    this.x -= dx;
-                    this.y -= dy;
-                    return false;
-                }
-                return true;
-            }
-            
-            collides() {
-                for (let y = 0; y < this.shape.length; y++) {
-                    for (let x = 0; x < this.shape[y].length; x++) {
-                        if (this.shape[y][x]) {
-                            const newX = this.x + x;
-                            const newY = this.y + y;
-                            
-                            if (newX < 0 || newX >= COLS || newY >= ROWS) {
-                                return true;
-                            }
-                            
-                            if (newY >= 0 && board[newY][newX]) {
-                                return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            }
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <script>
+    // Telegram WebApp
+    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+    }
+
+    function get(id) { return document.getElementById(id); }
+    function hide(id) { get(id).style.visibility = 'hidden'; }
+    function show(id) { get(id).style.visibility = null; }
+    function html(id, html) { get(id).innerHTML = html; }
+    function timestamp() { return new Date().getTime(); }
+    function random(min, max) { return (min + (Math.random() * (max - min))); }
+    function randomChoice(choices) { return choices[Math.round(random(0, choices.length-1))]; }
+
+    if (!window.requestAnimationFrame) {
+      window.requestAnimationFrame = window.webkitRequestAnimationFrame ||
+                                     window.mozRequestAnimationFrame ||
+                                     window.oRequestAnimationFrame ||
+                                     window.msRequestAnimationFrame ||
+                                     function(callback, element) {
+                                       window.setTimeout(callback, 1000 / 60);
+                                     }
+    }
+
+    var KEY = { ESC: 27, SPACE: 32, LEFT: 37, UP: 38, RIGHT: 39, DOWN: 40 },
+        DIR = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3, MIN: 0, MAX: 3 },
+        canvas = get('canvas'),
+        ctx = canvas.getContext('2d'),
+        ucanvas = get('upcoming'),
+        uctx = ucanvas.getContext('2d'),
+        speed = { start: 0.6, decrement: 0.005, min: 0.1 },
+        nx = 10,
+        ny = 20,
+        nu = 5;
+
+    var dx, dy, blocks, actions, playing, dt, current, next, score, vscore, rows, step;
+
+    var i = { size: 4, blocks: [0x0F00, 0x2222, 0x00F0, 0x4444], color: 'cyan' };
+    var j = { size: 3, blocks: [0x44C0, 0x8E00, 0x6440, 0x0E20], color: 'blue' };
+    var l = { size: 3, blocks: [0x4460, 0x0E80, 0xC440, 0x2E00], color: 'orange' };
+    var o = { size: 2, blocks: [0xCC00, 0xCC00, 0xCC00, 0xCC00], color: 'yellow' };
+    var s = { size: 3, blocks: [0x06C0, 0x8C40, 0x6C00, 0x4620], color: 'green' };
+    var t = { size: 3, blocks: [0x0E40, 0x4C40, 0x4E00, 0x4640], color: 'purple' };
+    var z = { size: 3, blocks: [0x0C60, 0x4C80, 0xC600, 0x2640], color: 'red' };
+
+    function eachblock(type, x, y, dir, fn) {
+      var bit, result, row = 0, col = 0, blocks = type.blocks[dir];
+      for(bit = 0x8000 ; bit > 0 ; bit = bit >> 1) {
+        if (blocks & bit) {
+          fn(x + col, y + row);
         }
-        
-        let board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-        let currentPiece = new Piece();
-        let nextPiece = new Piece();
-        let score = 0;
-        let lines = 0;
-        let level = 1;
-        let dropCounter = 0;
-        let dropInterval = 1000;
-        let lastTime = 0;
-        let gameOver = false;
-        
-        function drawBoard() {
-            // Сетка
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.lineWidth = 1;
-            for (let y = 0; y < ROWS; y++) {
-                for (let x = 0; x < COLS; x++) {
-                    ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                }
-            }
-            
-            // Блоки
-            board.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value) {
-                        const color = COLORS[value];
-                        const gradient = ctx.createLinearGradient(
-                            x * BLOCK_SIZE, y * BLOCK_SIZE,
-                            (x + 1) * BLOCK_SIZE, (y + 1) * BLOCK_SIZE
-                        );
-                        gradient.addColorStop(0, color);
-                        
-                        const r = parseInt(color.slice(1,3), 16);
-                        const g = parseInt(color.slice(3,5), 16);
-                        const b = parseInt(color.slice(5,7), 16);
-                        gradient.addColorStop(1, `rgb(${r*0.6},${g*0.6},${b*0.6})`);
-                        
-                        ctx.fillStyle = gradient;
-                        ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                        
-                        ctx.shadowColor = color;
-                        ctx.shadowBlur = 10;
-                        ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-                        ctx.shadowBlur = 0;
-                        
-                        ctx.strokeStyle = `rgb(${Math.min(255,r*1.4)},${Math.min(255,g*1.4)},${Math.min(255,b*1.4)})`;
-                        ctx.lineWidth = 2;
-                        ctx.strokeRect(x * BLOCK_SIZE + 1, y * BLOCK_SIZE + 1, BLOCK_SIZE - 2, BLOCK_SIZE - 2);
-                    }
-                });
-            });
+        if (++col === 4) {
+          col = 0;
+          ++row;
         }
-        
-        function drawNextPiece() {
-            nextCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            nextCtx.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
-            
-            const tempPiece = new Piece(nextPiece.type);
-            tempPiece.x = 1;
-            tempPiece.y = 1;
-            tempPiece.draw(nextCtx, 0, 0, 20);
+      }
+    }
+
+    function occupied(type, x, y, dir) {
+      var result = false
+      eachblock(type, x, y, dir, function(x, y) {
+        if ((x < 0) || (x >= nx) || (y < 0) || (y >= ny) || getBlock(x,y))
+          result = true;
+      });
+      return result;
+    }
+
+    function unoccupied(type, x, y, dir) {
+      return !occupied(type, x, y, dir);
+    }
+
+    var pieces = [];
+    function randomPiece() {
+      if (pieces.length == 0)
+        pieces = [i,i,i,i,j,j,j,j,l,l,l,l,o,o,o,o,s,s,s,s,t,t,t,t,z,z,z,z];
+      var type = pieces.splice(random(0, pieces.length-1), 1)[0];
+      return { type: type, dir: DIR.UP, x: Math.round(random(0, nx - type.size)), y: 0 };
+    }
+
+    function run() {
+      addEvents();
+      var last = now = timestamp();
+      function frame() {
+        now = timestamp();
+        update(Math.min(1, (now - last) / 1000.0));
+        draw();
+        last = now;
+        requestAnimationFrame(frame, canvas);
+      }
+      resize();
+      reset();
+      frame();
+    }
+
+    function addEvents() {
+      document.addEventListener('keydown', keydown, false);
+      window.addEventListener('resize', resize, false);
+      
+      // Touch controls
+      var touchStartX = 0, touchStartY = 0;
+      canvas.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        e.preventDefault();
+      });
+      canvas.addEventListener('touchend', function(e) {
+        var deltaX = e.changedTouches[0].clientX - touchStartX;
+        var deltaY = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+          if (deltaX > 30) actions.push(DIR.RIGHT);
+          else if (deltaX < -30) actions.push(DIR.LEFT);
+        } else {
+          if (deltaY > 30) actions.push(DIR.DOWN);
+          else if (deltaY < -30) actions.push(DIR.UP);
         }
-        
-        function merge() {
-            currentPiece.shape.forEach((row, y) => {
-                row.forEach((value, x) => {
-                    if (value) {
-                        board[currentPiece.y + y][currentPiece.x + x] = currentPiece.type;
-                    }
-                });
-            });
+        e.preventDefault();
+      });
+    }
+
+    function resize(event) {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+      ucanvas.width = ucanvas.clientWidth;
+      ucanvas.height = ucanvas.clientHeight;
+      dx = canvas.width / nx;
+      dy = canvas.height / ny;
+      invalidate();
+      invalidateNext();
+    }
+
+    function keydown(ev) {
+      var handled = false;
+      if (playing) {
+        switch(ev.keyCode) {
+          case KEY.LEFT: actions.push(DIR.LEFT); handled = true; break;
+          case KEY.RIGHT: actions.push(DIR.RIGHT); handled = true; break;
+          case KEY.UP: actions.push(DIR.UP); handled = true; break;
+          case KEY.DOWN: actions.push(DIR.DOWN); handled = true; break;
+          case KEY.ESC: lose(); handled = true; break;
         }
-        
-        function clearLines() {
-            let linesCleared = 0;
-            
-            for (let y = ROWS - 1; y >= 0; y--) {
-                if (board[y].every(cell => cell !== 0)) {
-                    board.splice(y, 1);
-                    board.unshift(Array(COLS).fill(0));
-                    linesCleared++;
-                    y++;
-                    
-                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-                }
-            }
-            
-            if (linesCleared > 0) {
-                lines += linesCleared;
-                score += linesCleared * 100 * level;
-                level = Math.floor(lines / 10) + 1;
-                dropInterval = Math.max(100, 1000 - (level - 1) * 100);
-                
-                updateScore();
-            }
+      } else if (ev.keyCode == KEY.SPACE) {
+        play();
+        handled = true;
+      }
+      if (handled) ev.preventDefault();
+    }
+
+    function play() { hide('start'); reset(); playing = true; }
+    function lose() { 
+      show('start'); 
+      setVisualScore(); 
+      playing = false;
+      if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+      }
+    }
+
+    function setVisualScore(n) { vscore = n || score; invalidateScore(); }
+    function setScore(n) { score = n; setVisualScore(n); }
+    function addScore(n) { score = score + n; }
+    function clearScore() { setScore(0); }
+    function clearRows() { setRows(0); }
+    function setRows(n) { rows = n; step = Math.max(speed.min, speed.start - (speed.decrement*rows)); invalidateRows(); }
+    function addRows(n) { setRows(rows + n); }
+    function getBlock(x,y) { return (blocks && blocks[x] ? blocks[x][y] : null); }
+    function setBlock(x,y,type) { blocks[x] = blocks[x] || []; blocks[x][y] = type; invalidate(); }
+    function clearBlocks() { blocks = []; invalidate(); }
+    function clearActions() { actions = []; }
+    function setCurrentPiece(piece) { current = piece || randomPiece(); invalidate(); }
+    function setNextPiece(piece) { next = piece || randomPiece(); invalidateNext(); }
+
+    function reset() {
+      dt = 0;
+      clearActions();
+      clearBlocks();
+      clearRows();
+      clearScore();
+      setCurrentPiece(next);
+      setNextPiece();
+    }
+
+    function update(idt) {
+      if (playing) {
+        if (vscore < score)
+          setVisualScore(vscore + 1);
+        handle(actions.shift());
+        dt = dt + idt;
+        if (dt > step) {
+          dt = dt - step;
+          drop();
         }
-        
-        function updateScore() {
-            document.getElementById('score').textContent = score;
-            document.getElementById('level').textContent = level;
-            document.getElementById('lines').textContent = lines;
+      }
+    }
+
+    function handle(action) {
+      switch(action) {
+        case DIR.LEFT: move(DIR.LEFT); break;
+        case DIR.RIGHT: move(DIR.RIGHT); break;
+        case DIR.UP: rotate(); break;
+        case DIR.DOWN: drop(); break;
+      }
+    }
+
+    function move(dir) {
+      var x = current.x, y = current.y;
+      switch(dir) {
+        case DIR.RIGHT: x = x + 1; break;
+        case DIR.LEFT: x = x - 1; break;
+        case DIR.DOWN: y = y + 1; break;
+      }
+      if (unoccupied(current.type, x, y, current.dir)) {
+        current.x = x;
+        current.y = y;
+        invalidate();
+        return true;
+      } else {
+        return false;
+      }
+    }
+
+    function rotate() {
+      var newdir = (current.dir == DIR.MAX ? DIR.MIN : current.dir + 1);
+      if (unoccupied(current.type, current.x, current.y, newdir)) {
+        current.dir = newdir;
+        invalidate();
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+          Telegram.WebApp.HapticFeedback.impactOccurred('light');
         }
-        
-        function drop() {
-            if (!currentPiece.move(0, 1)) {
-                merge();
-                clearLines();
-                currentPiece = nextPiece;
-                nextPiece = new Piece();
-                
-                if (currentPiece.collides()) {
-                    gameOver = true;
-                    window.Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-                    alert(`Игра окончена!\nСчёт: ${score}\nУровень: ${level}\nЛинии: ${lines}`);
-                    resetGame();
-                }
-            }
-            dropCounter = 0;
+      }
+    }
+
+    function drop() {
+      if (!move(DIR.DOWN)) {
+        addScore(10);
+        dropPiece();
+        removeLines();
+        setCurrentPiece(next);
+        setNextPiece(randomPiece());
+        clearActions();
+        if (occupied(current.type, current.x, current.y, current.dir)) {
+          lose();
         }
-        
-        function resetGame() {
-            board = Array.from({length: ROWS}, () => Array(COLS).fill(0));
-            currentPiece = new Piece();
-            nextPiece = new Piece();
-            score = 0;
-            lines = 0;
-            level = 1;
-            dropInterval = 1000;
-            gameOver = false;
-            updateScore();
+      }
+    }
+
+    function dropPiece() {
+      eachblock(current.type, current.x, current.y, current.dir, function(x, y) {
+        setBlock(x, y, current.type);
+      });
+    }
+
+    function removeLines() {
+      var x, y, complete, n = 0;
+      for(y = ny ; y > 0 ; --y) {
+        complete = true;
+        for(x = 0 ; x < nx ; ++x) {
+          if (!getBlock(x, y))
+            complete = false;
         }
-        
-        function gameLoop(time = 0) {
-            const deltaTime = time - lastTime;
-            lastTime = time;
-            
-            dropCounter += deltaTime;
-            if (dropCounter > dropInterval) {
-                drop();
-            }
-            
-            ctx.fillStyle = '#0a0a1a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            drawBoard();
-            currentPiece.draw(ctx);
-            drawNextPiece();
-            
-            requestAnimationFrame(gameLoop);
+        if (complete) {
+          removeLine(y);
+          y = y + 1;
+          n++;
         }
-        
-        document.addEventListener('keydown', (e) => {
-            if (gameOver) return;
-            
-            switch(e.key) {
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    currentPiece.move(-1, 0);
-                    break;
-                case 'ArrowRight':
-                    e.preventDefault();
-                    currentPiece.move(1, 0);
-                    break;
-                case 'ArrowDown':
-                    e.preventDefault();
-                    drop();
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    currentPiece.rotate();
-                    break;
-                case ' ':
-                    e.preventDefault();
-                    while (currentPiece.move(0, 1)) {}
-                    drop();
-                    window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-                    break;
-            }
-        });
-        
-        let touchStartX = 0;
-        let touchStartY = 0;
-        
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-        
-        canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-        });
-        
-        canvas.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            const touchEndX = e.changedTouches[0].clientX;
-            const touchEndY = e.changedTouches[0].clientY;
-            
-            const dx = touchEndX - touchStartX;
-            const dy = touchEndY - touchStartY;
-            
-            if (Math.abs(dx) > Math.abs(dy)) {
-                if (dx > 30) currentPiece.move(1, 0);
-                else if (dx < -30) currentPiece.move(-1, 0);
-            } else {
-                if (dy > 30) drop();
-                else if (dy < -30) currentPiece.rotate();
-            }
-        });
-        
-        canvas.addEventListener('click', () => {
-            currentPiece.rotate();
-        });
-        
-        updateScore();
-        gameLoop();
-    </script>
+      }
+      if (n > 0) {
+        addRows(n);
+        addScore(100*Math.pow(2,n-1));
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+          Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+        }
+      }
+    }
+
+    function removeLine(n) {
+      var x, y;
+      for(y = n ; y >= 0 ; --y) {
+        for(x = 0 ; x < nx ; ++x)
+          setBlock(x, y, (y == 0) ? null : getBlock(x, y-1));
+      }
+    }
+
+    var invalid = {};
+    function invalidate() { invalid.court = true; }
+    function invalidateNext() { invalid.next = true; }
+    function invalidateScore() { invalid.score = true; }
+    function invalidateRows() { invalid.rows = true; }
+
+    function draw() {
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.translate(0.5, 0.5);
+      drawCourt();
+      drawNext();
+      drawScore();
+      drawRows();
+      ctx.restore();
+    }
+
+    function drawCourt() {
+      if (invalid.court) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (playing)
+          drawPiece(ctx, current.type, current.x, current.y, current.dir);
+        var x, y, block;
+        for(y = 0 ; y < ny ; y++) {
+          for (x = 0 ; x < nx ; x++) {
+            if (block = getBlock(x,y))
+              drawBlock(ctx, x, y, block.color);
+          }
+        }
+        ctx.strokeRect(0, 0, nx*dx - 1, ny*dy - 1);
+        invalid.court = false;
+      }
+    }
+
+    function drawNext() {
+      if (invalid.next) {
+        var padding = (nu - next.type.size) / 2;
+        uctx.save();
+        uctx.translate(0.5, 0.5);
+        uctx.clearRect(0, 0, nu*dx, nu*dy);
+        drawPiece(uctx, next.type, padding, padding, next.dir);
+        uctx.strokeStyle = 'black';
+        uctx.strokeRect(0, 0, nu*dx - 1, nu*dy - 1);
+        uctx.restore();
+        invalid.next = false;
+      }
+    }
+
+    function drawScore() {
+      if (invalid.score) {
+        html('score', ("00000" + Math.floor(vscore)).slice(-5));
+        invalid.score = false;
+      }
+    }
+
+    function drawRows() {
+      if (invalid.rows) {
+        html('rows', rows);
+        invalid.rows = false;
+      }
+    }
+
+    function drawPiece(ctx, type, x, y, dir) {
+      eachblock(type, x, y, dir, function(x, y) {
+        drawBlock(ctx, x, y, type.color);
+      });
+    }
+
+    function drawBlock(ctx, x, y, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(x*dx, y*dy, dx, dy);
+      ctx.strokeRect(x*dx, y*dy, dx, dy)
+    }
+
+    run();
+  </script>
 </body>
 </html>

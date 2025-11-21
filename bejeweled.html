@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bejeweled</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+        .container {
+            background: rgba(44, 60, 72, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        h2 {
+            color: #ffd700;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            font-size: 28px;
+        }
+        .controls {
+            margin-bottom: 15px;
+        }
+        .controls label {
+            color: #fff;
+            margin-right: 5px;
+            font-size: 14px;
+        }
+        .controls input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            margin: 0 10px;
+            border-radius: 5px;
+            border: none;
+            text-align: center;
+        }
+        button, input[type="button"] {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 10px 5px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+        button:hover, input[type="button"]:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+        button:active, input[type="button"]:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        input[type="button"]:disabled {
+            background: #555;
+            cursor: default;
+        }
+        #result {
+            margin: 20px auto;
+            display: flex;
+            justify-content: center;
+        }
+        table {
+            border-collapse: collapse;
+            background: #1a1a2e;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+        }
+        td {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #444;
+            padding: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        td img {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+        }
+        .selected-cell {
+            background: #ffd700 !important;
+            box-shadow: inset 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+        .marked-cell {
+            background: #00ff00 !important;
+            box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.8);
+        }
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+        }
+        .stats input {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px 20px;
+        }
+        @media (max-width: 600px) {
+            td {
+                width: 30px;
+                height: 30px;
+            }
+            h2 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>💎 BEJEWELED 💎</h2>
+        <div class="controls">
+            <label>Строк:</label>
+            <input type="number" id="rowsInput" value="8" min="5" max="12">
+            <label>Столбцов:</label>
+            <input type="number" id="columnsInput" value="8" min="5" max="12">
+            <br>
+            <button onclick="initializeGame()">Начать игру!</button>
+        </div>
+        <div id="result"></div>
+        <div class="stats">
+            <input type="button" value="Счёт: 0" id="scoreButton" disabled>
+            <input type="button" value="Ходы: 5" id="turnsButton" disabled>
+        </div>
+    </div>
+
+    <script>
+        // Telegram WebApp
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+
+        // Game variables
+        let turn = 5;
+        let score = 0;
+        let gameOver = false;
+        let intervalID;
+
+        // Random color generator
+        function randomIndexColor() {
+            const colors = [
+                "img/bejeweled/rose.png",
+                "img/bejeweled/gray.png",
+                "img/bejeweled/yellow.png",
+                "img/bejeweled/green.png",
+                "img/bejeweled/pink.png",
+                "img/bejeweled/teal.png"
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Create cell
+        function createCell() {
+            const cell = document.createElement("td");
+            const img = document.createElement("img");
+            img.setAttribute("src", randomIndexColor());
+            cell.classList.add('game-cell');
+            cell.appendChild(img);
+            return cell;
+        }
+
+        // Create row
+        function createRow(numCols) {
+            const tr = document.createElement("tr");
+            for (let col = 0; col < numCols; col++) {
+                tr.appendChild(createCell());
+            }
+            return tr;
+        }
+
+        // Create table
+        function createTable(numRows, numCols) {
+            const table = document.createElement("table");
+            for (let row = 0; row < numRows; row++) {
+                table.appendChild(createRow(numCols));
+            }
+            return table;
+        }
+
+        // Display table
+        function displayTable(gameGrid) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = "";
+            resultDiv.appendChild(gameGrid);
+        }
+
+        // Initialize game
+        function initializeGame() {
+            if (gameOver) {
+                gameOver = false;
+            }
+
+            turn = 5;
+            score = 0;
+
+            const numRows = parseInt(document.getElementById('rowsInput').value);
+            const numCols = parseInt(document.getElementById('columnsInput').value);
+
+            if (isNaN(numRows) || isNaN(numCols) || numRows < 5 || numCols < 5 || numRows > 12 || numCols > 12) {
+                alert("Введите значения от 5 до 12 для строк и столбцов.");
+                return;
+            }
+
+            const gameGrid = createTable(numRows, numCols);
+            displayTable(gameGrid);
+            updateScoreAndTurns();
+
+            const cells = document.getElementsByClassName('game-cell');
+            for (let i = 0; i < cells.length; i++) {
+                cells[i].addEventListener('click', function(event) {
+                    let cell = event.target;
+                    while (cell.tagName.toLowerCase() !== 'td') {
+                        cell = cell.parentNode;
+                    }
+                    handleCellClick(gameGrid, cell);
+                });
+            }
+
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+        }
+
+        // Handle cell click
+        function handleCellClick(gameGrid, cell) {
+            if (gameOver) {
+                return;
+            }
+
+            const userRow = cell.parentNode.rowIndex;
+            const userColumn = cell.cellIndex;
+            const color = gameGrid.rows[userRow].cells[userColumn].querySelector('img').getAttribute('src');
+
+            clearCellClasses();
+            cell.classList.add('selected-cell');
+
+            const cellsToBeHighlighted = cellsToHighlight(gameGrid, userRow, userColumn, color);
+            for (let coord of cellsToBeHighlighted) {
+                const highlightedCell = gameGrid.rows[coord[0]].cells[coord[1]];
+                highlightedCell.classList.add('marked-cell');
+            }
+
+            const cellsToBeRemoved = cellsToClear(gameGrid, userRow, userColumn, color);
+
+            if (cellsToBeRemoved.length > 3) {
+                turn += 0;
+            } else {
+                turn -= 1;
+            }
+
+            score += cellsToBeRemoved.length;
+
+            if (cellsToBeRemoved.length > 1) {
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                }
+            }
+
+            deleteAndReplace(gameGrid, cellsToBeRemoved);
+            displayTable(gameGrid);
+            updateScoreAndTurns();
+
+            if (turn <= 0) {
+                gameOver = true;
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+                setTimeout(() => {
+                    alert(`Игра окончена!\nВаш счёт: ${score}`);
+                }, 100);
+            }
+
+            intervalID = setTimeout(clearCellClasses, 500);
+        }
+
+        // Clear cell classes
+        function clearCellClasses() {
+            const cells = document.querySelectorAll('.game-cell');
+            cells.forEach(cell => {
+                cell.classList.remove('selected-cell', 'marked-cell');
+            });
+        }
+
+        // Highlight cells
+        function cellsToHighlight(gameGrid, userRow, userColumn, color) {
+            return cellsToClear(gameGrid, userRow, userColumn, color);
+        }
+
+        // Find adjacent cells
+        function cellsToClear(gameGrid, userRow, userColumn, color) {
+            const coordinates = [];
+
+            // Top
+            if (userRow - 1 >= 0 && gameGrid.rows[userRow - 1].cells[userColumn].querySelector('img').getAttribute('src') === color) {
+                coordinates.push([userRow - 1, userColumn]);
+            }
+            // Bottom
+            if (userRow + 1 < gameGrid.rows.length && gameGrid.rows[userRow + 1].cells[userColumn].querySelector('img').getAttribute('src') === color) {
+                coordinates.push([userRow + 1, userColumn]);
+            }
+            // Left
+            if (userColumn - 1 >= 0 && gameGrid.rows[userRow].cells[userColumn - 1].querySelector('img').getAttribute('src') === color) {
+                coordinates.push([userRow, userColumn - 1]);
+            }
+            // Right
+            if (userColumn + 1 < gameGrid.rows[0].cells.length && gameGrid.rows[userRow].cells[userColumn + 1].querySelector('img').getAttribute('src') === color) {
+                coordinates.push([userRow, userColumn + 1]);
+            }
+
+            coordinates.push([userRow, userColumn]);
+            return coordinates;
+        }
+
+        // Delete and replace
+        function deleteAndReplace(gameGrid, positions) {
+            for (let [row, col] of positions) {
+                if (row === 0) {
+                    gameGrid.rows[row].cells[col].querySelector('img').setAttribute('src', randomIndexColor());
+                } else {
+                    while (row > 0) {
+                        const srcAbove = gameGrid.rows[row - 1].cells[col].querySelector('img').getAttribute('src');
+                        gameGrid.rows[row].cells[col].querySelector('img').setAttribute('src', srcAbove);
+                        row--;
+                    }
+                    gameGrid.rows[row].cells[col].querySelector('img').setAttribute('src', randomIndexColor());
+                }
+            }
+        }
+
+        // Update score and turns
+        function updateScoreAndTurns() {
+            document.getElementById('scoreButton').value = `Счёт: ${score}`;
+            document.getElementById('turnsButton').value = `Ходы: ${turn}`;
+        }
+
+        // Auto-start game
+        window.addEventListener('load', initializeGame);
+    </script>
+</body>
+</html>
