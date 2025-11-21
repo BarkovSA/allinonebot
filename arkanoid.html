@@ -157,9 +157,9 @@
             x: canvas.width / 2,
             y: canvas.height / 2,
             radius: 8,
-            speed: 3,
-            dx: 3,
-            dy: -3
+            speed: 2.1,
+            dx: 2.1,
+            dy: -2.1
         };
 
         const brickInfo = {
@@ -189,7 +189,7 @@
                 this.y = y;
                 this.type = type; // 'expand', 'multiball', 'life'
                 this.size = 20;
-                this.dy = 2;
+                this.dy = 1.4;
                 this.active = true;
             }
             update() {
@@ -248,9 +248,9 @@
                                 x: ball.x,
                                 y: ball.y,
                                 radius: 8,
-                                speed: 3,
-                                dx: (Math.random() - 0.5) * 6,
-                                dy: -3
+                                speed: 2.1,
+                                dx: (Math.random() - 0.5) * 4.2,
+                                dy: -2.1
                             });
                         }
                         break;
@@ -426,8 +426,8 @@
         function resetBall() {
             ball.x = canvas.width / 2;
             ball.y = canvas.height / 2;
-            ball.dx = 3 * (Math.random() > 0.5 ? 1 : -1);
-            ball.dy = -3;
+            ball.dx = 2.1 * (Math.random() > 0.5 ? 1 : -1);
+            ball.dy = -2.1;
             extraBalls = [];
         }
 
