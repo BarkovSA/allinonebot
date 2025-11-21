@@ -24,7 +24,7 @@
         }
 
         body.night {
-            background: #000;
+            background: #050510;
             transition: background-color 0.5s ease;
         }
 
@@ -60,13 +60,19 @@
         }
 
         body.night .hud {
-            color: #fff;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
         }
 
         .score-label {
             color: #7a7a7a;
             font-size: 14px;
             margin-right: 5px;
+        }
+
+        body.night .score-label {
+            color: #00aaaa;
+            text-shadow: 0 0 5px #00aaaa;
         }
 
         .game-over-screen {
@@ -86,7 +92,7 @@
         }
 
         body.night .game-over-screen {
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(5, 5, 16, 0.9);
         }
 
         .game-over-screen.show {
@@ -104,7 +110,8 @@
         }
 
         body.night .game-over-text {
-            color: #fff;
+            color: #ff0055;
+            text-shadow: 0 0 10px #ff0055;
         }
 
         .restart-btn {
@@ -140,11 +147,12 @@
         }
 
         body.night .restart-btn {
-            background: #fff;
+            background: #00ffff;
+            box-shadow: 0 0 15px #00ffff;
         }
 
         body.night .restart-btn::before {
-            border-left-color: #000;
+            border-left-color: #050510;
         }
 
         @media (max-width: 600px) {
@@ -192,7 +200,7 @@
             GRAVITY: 0.6,
             JUMP_VELOCITY: -10,
             MIN_JUMP_HEIGHT: 30,
-            SPEED_INITIAL: 6,
+            SPEED_INITIAL: 4.5,
             SPEED_MAX: 13,
             SPEED_ACCELERATION: 0.001,
             SPEED_DROP_COEFFICIENT: 3,
@@ -210,9 +218,9 @@
                 GROUND: '#535353'
             },
             NIGHT: {
-                BG: '#000',
-                FG: '#fff',
-                GROUND: '#fff'
+                BG: '#050510',
+                FG: '#00ffff',
+                GROUND: '#00ffff'
             }
         };
 
@@ -248,6 +256,18 @@
                         }
                     }
                 }
+            }
+
+            static createNeonVariant(sourceCanvas, color) {
+                const canvas = document.createElement('canvas');
+                canvas.width = sourceCanvas.width;
+                canvas.height = sourceCanvas.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(sourceCanvas, 0, 0);
+                ctx.globalCompositeOperation = 'source-in';
+                ctx.fillStyle = color;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                return canvas;
             }
 
             static createTRex() {
@@ -538,6 +558,7 @@
         class TRex {
             constructor() {
                 this.sprite = SpriteGenerator.createTRex();
+                this.spriteNight = SpriteGenerator.createNeonVariant(this.sprite, COLORS.NIGHT.FG);
                 this.x = 50;
                 this.y = CONFIG.GROUND_Y;
                 this.width = 44;
@@ -601,8 +622,10 @@
             draw(nightMode = false) {
                 ctx.save();
                 
+                const sprite = nightMode ? this.spriteNight : this.sprite;
                 if (nightMode) {
-                    ctx.filter = 'invert(1)';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = COLORS.NIGHT.FG;
                 }
 
                 let sx = this.jumping ? 0 : this.frame * 44;
@@ -611,9 +634,9 @@
                 if (this.ducking) {
                     sx = 88;
                     sy = 0;
-                    ctx.drawImage(this.sprite, sx, sy, 59, 30, this.x, this.y + 17, 59, 30);
+                    ctx.drawImage(sprite, sx, sy, 59, 30, this.x, this.y + 17, 59, 30);
                 } else {
-                    ctx.drawImage(this.sprite, sx, sy, 44, 47, this.x, this.y, 44, 47);
+                    ctx.drawImage(sprite, sx, sy, 44, 47, this.x, this.y, 44, 47);
                 }
                 
                 ctx.restore();
@@ -654,6 +677,8 @@
                     this.frameTimer = 0;
                 }
                 
+                this.spriteNight = SpriteGenerator.createNeonVariant(this.sprite, COLORS.NIGHT.FG);
+                
                 this.x = CONFIG.WIDTH;
                 this.size = Math.floor(Math.random() * 2) + 1;
                 this.remove = false;
@@ -678,16 +703,18 @@
             draw(nightMode = false) {
                 ctx.save();
                 
+                const sprite = nightMode ? this.spriteNight : this.sprite;
                 if (nightMode) {
-                    ctx.filter = 'invert(1)';
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = COLORS.NIGHT.FG;
                 }
                 
                 if (this.type === 'pterodactyl') {
                     const sx = this.frame * 46;
-                    ctx.drawImage(this.sprite, sx, 0, 46, 40, this.x, this.y, 46, 40);
+                    ctx.drawImage(sprite, sx, 0, 46, 40, this.x, this.y, 46, 40);
                 } else {
                     for (let i = 0; i < this.size; i++) {
-                        ctx.drawImage(this.sprite, i * this.width, 0, this.width, this.height, 
+                        ctx.drawImage(sprite, i * this.width, 0, this.width, this.height, 
                                     this.x + i * this.width, this.y, this.width, this.height);
                     }
                 }
@@ -708,6 +735,7 @@
         class Cloud {
             constructor() {
                 this.sprite = SpriteGenerator.createCloud();
+                this.spriteNight = SpriteGenerator.createNeonVariant(this.sprite, '#333344'); // Dimmer cloud for night
                 this.x = CONFIG.WIDTH + Math.random() * 200;
                 this.y = Math.random() * 50 + 20;
                 this.width = 46;
@@ -725,10 +753,8 @@
 
             draw(nightMode = false) {
                 ctx.save();
-                if (nightMode) {
-                    ctx.filter = 'invert(1)';
-                }
-                ctx.drawImage(this.sprite, this.x, this.y, this.width, this.height);
+                const sprite = nightMode ? this.spriteNight : this.sprite;
+                ctx.drawImage(sprite, this.x, this.y, this.width, this.height);
                 ctx.restore();
             }
         }
@@ -736,6 +762,7 @@
         class Ground {
             constructor() {
                 this.sprite = SpriteGenerator.createGround();
+                this.spriteNight = SpriteGenerator.createNeonVariant(this.sprite, COLORS.NIGHT.GROUND);
                 this.x1 = 0;
                 this.x2 = 1200;
                 this.y = CONFIG.GROUND_Y + 54;
@@ -756,11 +783,13 @@
 
             draw(nightMode = false) {
                 ctx.save();
+                const sprite = nightMode ? this.spriteNight : this.sprite;
                 if (nightMode) {
-                    ctx.filter = 'invert(1)';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = COLORS.NIGHT.GROUND;
                 }
-                ctx.drawImage(this.sprite, this.x1, this.y, 1200, this.height);
-                ctx.drawImage(this.sprite, this.x2, this.y, 1200, this.height);
+                ctx.drawImage(sprite, this.x1, this.y, 1200, this.height);
+                ctx.drawImage(sprite, this.x2, this.y, 1200, this.height);
                 ctx.restore();
             }
         }
