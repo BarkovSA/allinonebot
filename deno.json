@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "dev": "deno run --allow-all --unstable-kv --watch src/main.ts --dev"
+  },
+  "imports": {
+    "grammy": "https://deno.land/x/grammy@v1.34.0/mod.ts",
+    "postgres": "https://deno.land/x/postgres@v0.19.3/mod.ts"
+  }
+}

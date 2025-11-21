@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: allinone-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: allinone_user
+      POSTGRES_PASSWORD: allinone_password
+      POSTGRES_DB: allinone_bot
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U allinone_user -d allinone_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - allinone_network
+
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: allinone-whisper
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      - ASR_MODEL=base
+      - ASR_ENGINE=openai_whisper
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - allinone_network
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: allinone-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override DB connection to use container hostname
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      # Override Whisper URL to use container hostname
+      WHISPER_API_URL: http://whisper:9000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      whisper:
+        condition: service_healthy
+    networks:
+      - allinone_network
+
+volumes:
+  postgres_data:
+    name: allinone_postgres_data
+
+networks:
+  allinone_network:
+    driver: bridge
