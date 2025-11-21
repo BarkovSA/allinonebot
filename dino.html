@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>T-Rex Runner - Chrome Offline Game</title>
+    <title>T-Rex Runner</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -11,103 +11,172 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             background: #f7f7f7;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
             overflow: hidden;
+            touch-action: none;
         }
-        
-        body.inverted {
+
+        body.night {
             background: #000;
-            color: #fff;
+            transition: background-color 0.5s ease;
         }
-        
-        body.inverted .runner-container {
-            filter: invert(1);
-        }
-        
-        .interstitial-wrapper {
-            box-sizing: border-box;
-            line-height: 1.6em;
-            margin: 0 auto;
+
+        .game-wrapper {
+            position: relative;
             max-width: 600px;
             width: 100%;
-            position: relative;
         }
-        
-        .runner-container {
-            height: 150px;
-            max-width: 600px;
-            overflow: hidden;
+
+        .game-container {
             position: relative;
-            transition: opacity .25s;
-        }
-        
-        .runner-canvas {
-            height: 150px;
-            max-width: 600px;
-            opacity: 1;
+            background: transparent;
             overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .hud {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 20px;
+            color: #535353;
+            user-select: none;
+            z-index: 10;
+            display: flex;
+            gap: 30px;
+        }
+
+        body.night .hud {
+            color: #fff;
+        }
+
+        .score-label {
+            color: #7a7a7a;
+            font-size: 14px;
+            margin-right: 5px;
+        }
+
+        .game-over-screen {
             position: absolute;
             top: 0;
-            z-index: 2;
-        }
-        
-        .icon {
-            width: 44px;
-            height: 47px;
-            margin: 20px auto;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(247, 247, 247, 0.9);
             opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
         }
-        
-        .icon-offline {
+
+        body.night .game-over-screen {
+            background: rgba(0, 0, 0, 0.9);
+        }
+
+        .game-over-screen.show {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .game-over-text {
+            font-family: 'Courier New', monospace;
+            font-size: 36px;
+            font-weight: bold;
+            color: #535353;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        body.night .game-over-text {
+            color: #fff;
+        }
+
+        .restart-btn {
+            width: 72px;
+            height: 64px;
             background: #535353;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.1s ease;
         }
-        
-        .hidden {
-            display: none;
+
+        .restart-btn:hover {
+            transform: scale(1.1);
         }
-        
-        #offline-resources {
-            display: none;
+
+        .restart-btn:active {
+            transform: scale(0.95);
         }
-        
-        @media (max-width: 700px) {
-            .interstitial-wrapper {
-                padding: 0 10px;
+
+        .restart-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 0;
+            height: 0;
+            border-left: 20px solid #f7f7f7;
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+        }
+
+        body.night .restart-btn {
+            background: #fff;
+        }
+
+        body.night .restart-btn::before {
+            border-left-color: #000;
+        }
+
+        @media (max-width: 600px) {
+            .hud {
+                font-size: 16px;
+                top: 5px;
+                right: 5px;
             }
-        }
-        
-        @media (max-height: 350px) {
-            .runner-canvas {
-                height: 120px;
-            }
-            .runner-container {
-                height: 120px;
+
+            .game-over-text {
+                font-size: 28px;
             }
         }
     </style>
 </head>
-<body id="t" class="offline">
-    <div id="main-frame-error" class="interstitial-wrapper">
-        <div id="main-content">
-            <div class="icon icon-offline" alt=""></div>
-        </div>
-        
-        <div id="offline-resources">
-            <img id="offline-resources-1x" src="https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/neterror/resources/images/default_100_percent/offline/100-offline-sprite.png?format=TEXT">
-            <img id="offline-resources-2x" src="https://chromium.googlesource.com/chromium/src/+/refs/heads/main/components/neterror/resources/images/default_200_percent/200-offline-sprite.png?format=TEXT">
+<body>
+    <div class="game-wrapper">
+        <div class="game-container">
+            <div class="hud">
+                <div><span class="score-label">HI</span><span id="highScore">00000</span></div>
+                <div id="score">00000</div>
+            </div>
+            <canvas id="gameCanvas"></canvas>
+            <div class="game-over-screen" id="gameOverScreen">
+                <div class="game-over-text">GAME OVER</div>
+                <button class="restart-btn" id="restartBtn" aria-label="Restart"></button>
+            </div>
         </div>
     </div>
 
     <script>
-        // Initialize Telegram WebApp
+        // ==================== TELEGRAM WEBAPP ====================
         const tg = window.Telegram?.WebApp;
         if (tg) {
             tg.ready();
@@ -115,1192 +184,668 @@
             tg.enableClosingConfirmation();
         }
 
-        // T-Rex Runner Game - Original Chrome implementation
-        // Based on Chromium source code
-        (function() {
-            'use strict';
+        // ==================== GAME CONFIGURATION ====================
+        const CONFIG = {
+            WIDTH: 600,
+            HEIGHT: 150,
+            FPS: 60,
+            GRAVITY: 0.6,
+            JUMP_VELOCITY: -10,
+            MIN_JUMP_HEIGHT: 30,
+            SPEED_INITIAL: 6,
+            SPEED_MAX: 13,
+            SPEED_ACCELERATION: 0.001,
+            SPEED_DROP_COEFFICIENT: 3,
+            GROUND_Y: 105,
+            CLEAR_TIME: 3000,
+            NIGHT_INTERVAL: 700,
+            ACHIEVEMENT_INTERVAL: 100,
+            DISTANCE_COEFFICIENT: 0.025
+        };
 
-            const IS_HIDPI = window.devicePixelRatio > 1;
-            const IS_IOS = /iPad|iPhone|iPod/.test(window.navigator.platform);
-            const IS_MOBILE = /Android/.test(window.navigator.userAgent) || IS_IOS;
-            const FPS = 60;
-            const DEFAULT_WIDTH = 600;
+        const COLORS = {
+            DAY: {
+                BG: '#f7f7f7',
+                FG: '#535353',
+                GROUND: '#535353'
+            },
+            NIGHT: {
+                BG: '#000',
+                FG: '#fff',
+                GROUND: '#fff'
+            }
+        };
 
-            // T-Rex config
-            const config = {
-                ACCELERATION: 0.001,
-                BG_CLOUD_SPEED: 0.2,
-                BOTTOM_PAD: 10,
-                CLEAR_TIME: 3000,
-                CLOUD_FREQUENCY: 0.5,
-                GAMEOVER_CLEAR_TIME: 750,
-                GAP_COEFFICIENT: 0.6,
-                GRAVITY: 0.6,
-                INITIAL_JUMP_VELOCITY: -10,
-                INVERT_FADE_DURATION: 12000,
-                INVERT_DISTANCE: 700,
-                MAX_BLINK_COUNT: 3,
-                MAX_CLOUDS: 6,
-                MAX_OBSTACLE_LENGTH: 3,
-                MAX_OBSTACLE_DUPLICATION: 2,
-                MAX_SPEED: 13,
-                MIN_JUMP_HEIGHT: 35,
-                MOBILE_SPEED_COEFFICIENT: 1.2,
-                SPEED: 6,
-                SPEED_DROP_COEFFICIENT: 3
-            };
+        // ==================== CANVAS SETUP ====================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
 
-            class Runner {
-                constructor(containerSelector) {
-                    this.outerContainerEl = document.querySelector(containerSelector);
-                    this.containerEl = null;
-                    this.config = config;
-                    this.dimensions = { WIDTH: DEFAULT_WIDTH, HEIGHT: 150 };
-                    this.canvas = null;
-                    this.ctx = null;
-                    this.tRex = null;
-                    this.distanceMeter = null;
-                    this.distanceRan = 0;
-                    this.highestScore = parseInt(localStorage.getItem('trexHighScore') || '0');
-                    this.time = 0;
-                    this.runningTime = 0;
-                    this.msPerFrame = 1000 / FPS;
-                    this.currentSpeed = this.config.SPEED;
-                    this.obstacles = [];
-                    this.started = false;
-                    this.activated = false;
-                    this.crashed = false;
-                    this.paused = false;
-                    this.inverted = false;
-                    this.invertTimer = 0;
-                    this.playing = false;
-                    this.gameOverPanel = null;
-                    this.horizon = null;
-                    
-                    this.init();
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const rect = container.getBoundingClientRect();
+            const scale = Math.min(rect.width / CONFIG.WIDTH, 1);
+            
+            canvas.width = CONFIG.WIDTH * dpr;
+            canvas.height = CONFIG.HEIGHT * dpr;
+            canvas.style.width = CONFIG.WIDTH * scale + 'px';
+            canvas.style.height = CONFIG.HEIGHT * scale + 'px';
+            
+            ctx.scale(dpr, dpr);
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // ==================== SPRITE GENERATOR ====================
+        class SpriteGenerator {
+            static createTRex() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 88;
+                canvas.height = 94;
+                const ctx = canvas.getContext('2d');
+                
+                // Running frame 1
+                ctx.fillStyle = '#535353';
+                // Body
+                ctx.fillRect(0, 0, 44, 47);
+                // Head
+                ctx.fillRect(44, 0, 22, 22);
+                // Eye
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(50, 6, 4, 4);
+                ctx.fillStyle = '#535353';
+                // Tail
+                ctx.fillRect(0, 20, 10, 10);
+                // Legs frame 1
+                ctx.fillRect(10, 47, 8, 15);
+                ctx.fillRect(26, 47, 8, 15);
+                
+                // Running frame 2 (offset by 44px)
+                ctx.fillStyle = '#535353';
+                ctx.fillRect(44 + 0, 0, 44, 47);
+                ctx.fillRect(44 + 44, 0, 22, 22);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(44 + 50, 6, 4, 4);
+                ctx.fillStyle = '#535353';
+                ctx.fillRect(44 + 0, 20, 10, 10);
+                // Legs frame 2 (different position)
+                ctx.fillRect(44 + 12, 47, 8, 15);
+                ctx.fillRect(44 + 28, 47, 8, 15);
+                
+                // Jumping (offset to second row)
+                ctx.fillRect(0, 47, 44, 47);
+                ctx.fillRect(44, 47, 22, 22);
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(50, 53, 4, 4);
+                ctx.fillStyle = '#535353';
+                ctx.fillRect(0, 67, 10, 10);
+                // Legs together for jump
+                ctx.fillRect(18, 94, 8, 0);
+                
+                // Ducking (offset)
+                ctx.fillRect(88, 0, 59, 30);
+                ctx.fillRect(120, 0, 22, 15);
+                
+                return canvas;
+            }
+
+            static createCactus(type = 'small') {
+                const canvas = document.createElement('canvas');
+                const w = type === 'small' ? 17 : 25;
+                const h = type === 'small' ? 35 : 50;
+                canvas.width = w * 3;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = '#535353';
+                
+                for (let i = 0; i < 3; i++) {
+                    const x = i * w;
+                    // Main column
+                    ctx.fillRect(x + w/3, 0, w/3, h);
+                    // Arms
+                    if (Math.random() > 0.5) {
+                        ctx.fillRect(x, h * 0.3, w/3, h * 0.3);
+                        ctx.fillRect(x + w*2/3, h * 0.4, w/3, h * 0.25);
+                    }
                 }
+                
+                return canvas;
+            }
 
-                init() {
-                    this.adjustDimensions();
-                    this.setSpeed();
+            static createPterodactyl() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 92;
+                canvas.height = 80;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = '#535353';
+                
+                // Frame 1
+                ctx.fillRect(10, 15, 30, 20); // Body
+                ctx.fillRect(35, 12, 15, 10); // Head
+                ctx.fillRect(45, 14, 8, 6);   // Beak
+                // Wings up
+                ctx.fillRect(0, 10, 12, 25);
+                ctx.fillRect(38, 10, 12, 25);
+                
+                // Frame 2 (wings down)
+                ctx.fillRect(46 + 10, 15, 30, 20);
+                ctx.fillRect(46 + 35, 12, 15, 10);
+                ctx.fillRect(46 + 45, 14, 8, 6);
+                // Wings down
+                ctx.fillRect(46 + 0, 25, 12, 25);
+                ctx.fillRect(46 + 38, 25, 12, 25);
+                
+                return canvas;
+            }
 
-                    this.containerEl = document.createElement('div');
-                    this.containerEl.className = 'runner-container';
+            static createCloud() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 46;
+                canvas.height = 14;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = '#535353';
+                ctx.fillRect(0, 8, 46, 6);
+                ctx.fillRect(8, 4, 30, 4);
+                ctx.fillRect(12, 0, 22, 4);
+                
+                return canvas;
+            }
 
-                    this.canvas = document.createElement('canvas');
-                    this.canvas.className = 'runner-canvas';
-                    this.canvas.width = this.dimensions.WIDTH;
-                    this.canvas.height = this.dimensions.HEIGHT;
-
-                    this.ctx = this.canvas.getContext('2d');
-                    this.ctx.fillStyle = '#f7f7f7';
-                    this.ctx.fill();
-
-                    this.updateCanvasScaling(this.canvas);
-
-                    this.containerEl.appendChild(this.canvas);
-                    this.outerContainerEl.appendChild(this.containerEl);
-
-                    this.horizon = new Horizon(this.canvas, this.dimensions, this.config.GAP_COEFFICIENT);
-                    this.distanceMeter = new DistanceMeter(this.canvas, this.dimensions.WIDTH);
-                    this.tRex = new Trex(this.canvas, this.dimensions.WIDTH / 2);
-
-                    document.querySelector('.icon').style.visibility = 'hidden';
-
-                    this.startListening();
-                    this.update();
-
-                    window.addEventListener('resize', this.debounceResize.bind(this));
+            static createGround() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1200;
+                canvas.height = 24;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = '#535353';
+                // Ground line with bumps
+                for (let x = 0; x < 1200; x += 4) {
+                    const h = Math.random() > 0.5 ? 2 : 3;
+                    ctx.fillRect(x, 0, 2, h);
                 }
+                
+                return canvas;
+            }
+        }
 
-                adjustDimensions() {
-                    const windowHeight = window.innerHeight;
-                    const windowWidth = window.innerWidth;
+        // ==================== GAME ENTITIES ====================
+        class TRex {
+            constructor() {
+                this.sprite = SpriteGenerator.createTRex();
+                this.x = 50;
+                this.y = CONFIG.GROUND_Y;
+                this.width = 44;
+                this.height = 47;
+                this.velocityY = 0;
+                this.jumping = false;
+                this.ducking = false;
+                this.frame = 0;
+                this.frameTimer = 0;
+                this.frameDelay = 100;
+            }
 
-                    // Responsive sizing
-                    if (windowHeight > windowWidth) {
-                        // Portrait
-                        this.dimensions.WIDTH = Math.min(DEFAULT_WIDTH, windowWidth);
-                        this.dimensions.HEIGHT = 150;
+            jump() {
+                if (!this.jumping && !this.ducking) {
+                    this.velocityY = CONFIG.JUMP_VELOCITY;
+                    this.jumping = true;
+                    if (tg) tg.HapticFeedback?.impactOccurred('light');
+                }
+            }
+
+            duck(isDucking) {
+                if (!this.jumping) {
+                    this.ducking = isDucking;
+                    if (isDucking) {
+                        this.height = 30;
                     } else {
-                        // Landscape
-                        this.dimensions.WIDTH = Math.min(DEFAULT_WIDTH, windowWidth * 0.9);
-                        this.dimensions.HEIGHT = Math.min(150, windowHeight * 0.3);
+                        this.height = 47;
+                    }
+                }
+            }
+
+            speedDrop() {
+                if (this.jumping) {
+                    this.velocityY = 1;
+                }
+            }
+
+            update(deltaTime) {
+                // Gravity
+                if (this.jumping) {
+                    this.velocityY += CONFIG.GRAVITY;
+                    this.y += this.velocityY;
+
+                    if (this.y >= CONFIG.GROUND_Y) {
+                        this.y = CONFIG.GROUND_Y;
+                        this.jumping = false;
+                        this.velocityY = 0;
                     }
                 }
 
-                setSpeed(speed) {
-                    const sp = speed || this.currentSpeed;
-                    if (this.dimensions.WIDTH < DEFAULT_WIDTH) {
-                        const mobileSpeed = sp * this.dimensions.WIDTH / DEFAULT_WIDTH * this.config.MOBILE_SPEED_COEFFICIENT;
-                        this.currentSpeed = mobileSpeed > sp ? sp : mobileSpeed;
-                    } else if (speed) {
-                        this.currentSpeed = speed;
+                // Animation
+                if (!this.jumping) {
+                    this.frameTimer += deltaTime;
+                    if (this.frameTimer >= this.frameDelay) {
+                        this.frame = this.frame === 0 ? 1 : 0;
+                        this.frameTimer = 0;
                     }
                 }
+            }
 
-                updateCanvasScaling(canvas) {
-                    const context = canvas.getContext('2d');
-                    const devicePixelRatio = Math.floor(window.devicePixelRatio) || 1;
-                    const backingStoreRatio = 1;
-                    const ratio = devicePixelRatio / backingStoreRatio;
-
-                    if (devicePixelRatio !== backingStoreRatio) {
-                        const oldWidth = canvas.width;
-                        const oldHeight = canvas.height;
-
-                        canvas.width = oldWidth * ratio;
-                        canvas.height = oldHeight * ratio;
-                        canvas.style.width = oldWidth + 'px';
-                        canvas.style.height = oldHeight + 'px';
-
-                        context.scale(ratio, ratio);
-                        return true;
-                    }
-                    return false;
+            draw(nightMode = false) {
+                ctx.save();
+                
+                if (nightMode) {
+                    ctx.filter = 'invert(1)';
                 }
 
-                debounceResize() {
-                    if (!this.resizeTimerId_) {
-                        this.resizeTimerId_ = setTimeout(() => {
-                            this.resizeTimerId_ = null;
-                            this.resize();
-                        }, 250);
+                let sx = this.jumping ? 0 : this.frame * 44;
+                let sy = this.jumping ? 47 : 0;
+                
+                if (this.ducking) {
+                    sx = 88;
+                    sy = 0;
+                    ctx.drawImage(this.sprite, sx, sy, 59, 30, this.x, this.y + 17, 59, 30);
+                } else {
+                    ctx.drawImage(this.sprite, sx, sy, 44, 47, this.x, this.y, 44, 47);
+                }
+                
+                ctx.restore();
+            }
+
+            getCollisionBox() {
+                return {
+                    x: this.x + 4,
+                    y: this.y + 4,
+                    width: (this.ducking ? 59 : 44) - 8,
+                    height: this.height - 8
+                };
+            }
+        }
+
+        class Obstacle {
+            constructor(type, speed) {
+                this.type = type;
+                this.speed = speed;
+                
+                if (type === 'cactus_small') {
+                    this.sprite = SpriteGenerator.createCactus('small');
+                    this.width = 17;
+                    this.height = 35;
+                    this.y = CONFIG.GROUND_Y + 12;
+                } else if (type === 'cactus_large') {
+                    this.sprite = SpriteGenerator.createCactus('large');
+                    this.width = 25;
+                    this.height = 50;
+                    this.y = CONFIG.GROUND_Y - 3;
+                } else if (type === 'pterodactyl') {
+                    this.sprite = SpriteGenerator.createPterodactyl();
+                    this.width = 46;
+                    this.height = 40;
+                    const heights = [CONFIG.GROUND_Y - 20, CONFIG.GROUND_Y - 50, CONFIG.GROUND_Y - 80];
+                    this.y = heights[Math.floor(Math.random() * heights.length)];
+                    this.frame = 0;
+                    this.frameTimer = 0;
+                }
+                
+                this.x = CONFIG.WIDTH;
+                this.size = Math.floor(Math.random() * 2) + 1;
+                this.remove = false;
+            }
+
+            update(deltaTime) {
+                this.x -= this.speed;
+                
+                if (this.type === 'pterodactyl') {
+                    this.frameTimer += deltaTime;
+                    if (this.frameTimer >= 100) {
+                        this.frame = this.frame === 0 ? 1 : 0;
+                        this.frameTimer = 0;
                     }
                 }
+                
+                if (this.x + this.width * this.size < 0) {
+                    this.remove = true;
+                }
+            }
 
-                resize() {
-                    this.adjustDimensions();
-                    this.canvas.width = this.dimensions.WIDTH;
-                    this.canvas.height = this.dimensions.HEIGHT;
-                    this.updateCanvasScaling(this.canvas);
-                    
-                    this.distanceMeter.calcXPos(this.dimensions.WIDTH);
-                    this.clearCanvas();
-                    this.horizon.update(0, 0, true);
-                    this.tRex.update(0);
-
-                    if (this.crashed && this.gameOverPanel) {
-                        this.gameOverPanel.updateDimensions(this.dimensions.WIDTH);
-                        this.gameOverPanel.draw();
+            draw(nightMode = false) {
+                ctx.save();
+                
+                if (nightMode) {
+                    ctx.filter = 'invert(1)';
+                }
+                
+                if (this.type === 'pterodactyl') {
+                    const sx = this.frame * 46;
+                    ctx.drawImage(this.sprite, sx, 0, 46, 40, this.x, this.y, 46, 40);
+                } else {
+                    for (let i = 0; i < this.size; i++) {
+                        ctx.drawImage(this.sprite, i * this.width, 0, this.width, this.height, 
+                                    this.x + i * this.width, this.y, this.width, this.height);
                     }
                 }
+                
+                ctx.restore();
+            }
 
-                clearCanvas() {
-                    this.ctx.clearRect(0, 0, this.dimensions.WIDTH, this.dimensions.HEIGHT);
+            getCollisionBox() {
+                return {
+                    x: this.x + 4,
+                    y: this.y + 4,
+                    width: this.width * this.size - 8,
+                    height: this.height - 8
+                };
+            }
+        }
+
+        class Cloud {
+            constructor() {
+                this.sprite = SpriteGenerator.createCloud();
+                this.x = CONFIG.WIDTH + Math.random() * 200;
+                this.y = Math.random() * 50 + 20;
+                this.width = 46;
+                this.height = 14;
+                this.speed = 0.5;
+            }
+
+            update() {
+                this.x -= this.speed;
+                if (this.x + this.width < 0) {
+                    this.x = CONFIG.WIDTH + Math.random() * 200;
+                    this.y = Math.random() * 50 + 20;
+                }
+            }
+
+            draw(nightMode = false) {
+                ctx.save();
+                if (nightMode) {
+                    ctx.filter = 'invert(1)';
+                }
+                ctx.drawImage(this.sprite, this.x, this.y, this.width, this.height);
+                ctx.restore();
+            }
+        }
+
+        class Ground {
+            constructor() {
+                this.sprite = SpriteGenerator.createGround();
+                this.x1 = 0;
+                this.x2 = 1200;
+                this.y = CONFIG.GROUND_Y + 54;
+                this.height = 24;
+            }
+
+            update(speed) {
+                this.x1 -= speed;
+                this.x2 -= speed;
+
+                if (this.x1 <= -1200) {
+                    this.x1 = this.x2 + 1200;
+                }
+                if (this.x2 <= -1200) {
+                    this.x2 = this.x1 + 1200;
+                }
+            }
+
+            draw(nightMode = false) {
+                ctx.save();
+                if (nightMode) {
+                    ctx.filter = 'invert(1)';
+                }
+                ctx.drawImage(this.sprite, this.x1, this.y, 1200, this.height);
+                ctx.drawImage(this.sprite, this.x2, this.y, 1200, this.height);
+                ctx.restore();
+            }
+        }
+
+        // ==================== GAME MANAGER ====================
+        class Game {
+            constructor() {
+                this.tRex = new TRex();
+                this.ground = new Ground();
+                this.obstacles = [];
+                this.clouds = [];
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('trexHighScore') || '0');
+                this.distance = 0;
+                this.speed = CONFIG.SPEED_INITIAL;
+                this.running = false;
+                this.gameOver = false;
+                this.nightMode = false;
+                this.lastTime = 0;
+                this.obstacleTimer = 0;
+                this.obstacleInterval = 1500;
+                this.clearTime = 0;
+                this.nightTimer = 0;
+                this.achievementFlash = 0;
+
+                // Create initial clouds
+                for (let i = 0; i < 5; i++) {
+                    const cloud = new Cloud();
+                    cloud.x = Math.random() * CONFIG.WIDTH;
+                    this.clouds.push(cloud);
                 }
 
-                update() {
-                    this.updatePending = false;
+                this.updateScoreDisplay();
+                this.setupControls();
+                this.loop(0);
+            }
 
-                    const now = performance.now();
-                    const deltaTime = now - (this.time || now);
-                    this.time = now;
-
-                    if (this.playing) {
-                        this.clearCanvas();
-
-                        if (this.tRex.jumping) {
-                            this.tRex.updateJump(deltaTime);
-                        }
-
-                        this.runningTime += deltaTime;
-                        const hasObstacles = this.runningTime > this.config.CLEAR_TIME;
-
-                        if (this.tRex.jumpCount === 1 && !this.playingIntro) {
-                            this.playIntro();
-                        }
-
-                        if (this.playingIntro) {
-                            this.horizon.update(0, this.currentSpeed, hasObstacles);
-                        } else {
-                            deltaTime = !this.started ? 0 : deltaTime;
-                            this.horizon.update(deltaTime, this.currentSpeed, hasObstacles, this.inverted);
-                        }
-
-                        let collision = hasObstacles && this.horizon.obstacles.length > 0 && this.checkForCollision(this.horizon.obstacles[0], this.tRex);
-
-                        if (!collision) {
-                            this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
-
-                            if (this.currentSpeed < this.config.MAX_SPEED) {
-                                this.currentSpeed += this.config.ACCELERATION;
-                            }
-                        } else {
-                            this.gameOver();
-                        }
-
-                        const playAchievementSound = this.distanceMeter.update(deltaTime, Math.ceil(this.distanceRan));
-
-                        if (playAchievementSound && tg) {
-                            tg.HapticFeedback?.notificationOccurred('success');
-                        }
-
-                        // Night mode
-                        if (this.invertTimer > this.config.INVERT_FADE_DURATION) {
-                            this.invertTimer = 0;
-                            this.invertTrigger = false;
-                            this.invert();
-                        } else if (this.invertTimer) {
-                            this.invertTimer += deltaTime;
-                        } else {
-                            const actualDistance = this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
-
-                            if (actualDistance > 0) {
-                                this.invertTrigger = !(actualDistance % this.config.INVERT_DISTANCE);
-
-                                if (this.invertTrigger && this.invertTimer === 0) {
-                                    this.invertTimer += deltaTime;
-                                    this.invert();
-                                }
-                            }
-                        }
-                    }
-
-                    if (this.playing || (!this.activated && this.tRex.blinkCount < this.config.MAX_BLINK_COUNT)) {
-                        this.tRex.update(deltaTime);
-                        this.scheduleNextUpdate();
-                    }
-                }
-
-                scheduleNextUpdate() {
-                    if (!this.updatePending) {
-                        this.updatePending = true;
-                        this.raqId = requestAnimationFrame(this.update.bind(this));
-                    }
-                }
-
-                playIntro() {
-                    if (!this.started && !this.crashed) {
-                        this.playingIntro = true;
-                        this.tRex.playingIntro = true;
-
-                        const keyframes = `@keyframes intro { from { width: 44px } to { width: ${this.dimensions.WIDTH}px } }`;
-                        
-                        const sheet = document.createElement('style');
-                        sheet.innerHTML = keyframes;
-                        document.head.appendChild(sheet);
-
-                        this.containerEl.style.animation = 'intro .4s ease-out 1 both';
-                        this.containerEl.style.width = this.dimensions.WIDTH + 'px';
-
-                        this.started = true;
-                    } else if (this.crashed) {
-                        this.restart();
-                    }
-                }
-
-                startGame() {
-                    this.runningTime = 0;
-                    this.playingIntro = false;
-                    this.tRex.playingIntro = false;
-                    this.containerEl.style.animation = '';
-                    this.playing = true;
-                    this.activated = true;
-
-                    if (tg) {
-                        tg.HapticFeedback?.impactOccurred('medium');
-                    }
-                }
-
-                checkForCollision(obstacle, tRex) {
-                    const tRexBox = {
-                        x: tRex.xPos + 1,
-                        y: tRex.yPos + 1,
-                        width: tRex.config.WIDTH - 2,
-                        height: tRex.config.HEIGHT - 2
-                    };
-
-                    const obstacleBox = {
-                        x: obstacle.xPos + 1,
-                        y: obstacle.yPos + 1,
-                        width: obstacle.typeConfig.width * obstacle.size - 2,
-                        height: obstacle.typeConfig.height - 2
-                    };
-
-                    // Simple AABB collision
-                    return tRexBox.x < obstacleBox.x + obstacleBox.width &&
-                           tRexBox.x + tRexBox.width > obstacleBox.x &&
-                           tRexBox.y < obstacleBox.y + obstacleBox.height &&
-                           tRexBox.y + tRexBox.height > obstacleBox.y;
-                }
-
-                gameOver() {
-                    if (tg) {
-                        tg.HapticFeedback?.notificationOccurred('error');
-                    }
-
-                    this.stop();
-                    this.crashed = true;
-                    this.distanceMeter.achievement = false;
-
-                    this.tRex.update(100, Trex.status.CRASHED);
-
-                    if (!this.gameOverPanel) {
-                        this.gameOverPanel = new GameOverPanel(this.canvas, this.dimensions);
-                    } else {
-                        this.gameOverPanel.draw();
-                    }
-
-                    if (this.distanceRan > this.highestScore) {
-                        this.highestScore = Math.ceil(this.distanceRan);
-                        this.distanceMeter.setHighScore(this.highestScore);
-                        localStorage.setItem('trexHighScore', this.highestScore);
-                    }
-
-                    this.time = performance.now();
-                }
-
-                stop() {
-                    this.playing = false;
-                    this.paused = true;
-                    cancelAnimationFrame(this.raqId);
-                    this.raqId = 0;
-                }
-
-                play() {
-                    if (!this.crashed) {
-                        this.playing = true;
-                        this.paused = false;
-                        this.tRex.update(0, Trex.status.RUNNING);
-                        this.time = performance.now();
-                        this.update();
-                    }
-                }
-
-                restart() {
-                    if (!this.raqId) {
-                        this.playCount++;
-                        this.runningTime = 0;
-                        this.playing = true;
-                        this.crashed = false;
-                        this.distanceRan = 0;
-                        this.setSpeed(this.config.SPEED);
-                        this.time = performance.now();
-                        this.containerEl.classList.remove('crashed');
-                        this.clearCanvas();
-                        this.distanceMeter.reset(this.highestScore);
-                        this.horizon.reset();
-                        this.tRex.reset();
-                        this.playSound = false;
-                        this.invertTrigger = false;
-                        this.inverted = false;
-                        this.update();
-
-                        if (tg) {
-                            tg.HapticFeedback?.impactOccurred('medium');
-                        }
-                    }
-                }
-
-                onKeyDown(e) {
-                    if (!this.crashed && [32, 38, 40].indexOf(e.keyCode) > -1) {
+            setupControls() {
+                // Keyboard
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' || e.code === 'ArrowUp') {
                         e.preventDefault();
-                    }
-
-                    if (!this.playing) {
-                        if (e.keyCode === 32) { // Space
-                            this.playIntro();
-                            e.preventDefault();
-                        }
-                    } else if (!this.crashed) {
-                        if (e.keyCode === 32 || e.keyCode === 38) { // Space or Up
-                            if (!this.tRex.jumping && !this.tRex.ducking) {
-                                if (tg) tg.HapticFeedback?.impactOccurred('light');
-                                this.tRex.startJump(this.currentSpeed);
-                            }
-                        } else if (e.keyCode === 40) { // Down
-                            if (this.tRex.jumping) {
-                                this.tRex.setSpeedDrop();
-                            } else if (!this.tRex.jumping && !this.tRex.ducking) {
-                                this.tRex.setDuck(true);
-                            }
-                        }
-                    } else if (this.crashed) {
-                        const deltaTime = performance.now() - this.time;
-                        if (e.keyCode === 32 && deltaTime >= this.config.GAMEOVER_CLEAR_TIME) {
+                        if (this.gameOver) {
                             this.restart();
+                        } else if (!this.running) {
+                            this.start();
+                        } else {
+                            this.tRex.jump();
+                        }
+                    } else if (e.code === 'ArrowDown') {
+                        e.preventDefault();
+                        if (this.running && !this.gameOver) {
+                            this.tRex.duck(true);
+                            this.tRex.speedDrop();
                         }
                     }
-                }
+                });
 
-                onKeyUp(e) {
-                    const keyCode = String(e.keyCode);
-                    
-                    if (this.playing && !this.crashed) {
-                        if (keyCode === '32' || keyCode === '38') { // Space or Up
-                            this.tRex.endJump();
-                        } else if (keyCode === '40') { // Down
-                            this.tRex.speedDrop = false;
-                            this.tRex.setDuck(false);
-                        }
+                document.addEventListener('keyup', (e) => {
+                    if (e.code === 'ArrowDown') {
+                        e.preventDefault();
+                        this.tRex.duck(false);
                     }
-                }
+                });
 
-                startListening() {
-                    document.addEventListener('keydown', this.onKeyDown.bind(this));
-                    document.addEventListener('keyup', this.onKeyUp.bind(this));
-
-                    if (IS_MOBILE) {
-                        this.canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
-                        this.canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
-                    } else {
-                        this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-                        this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
-                    }
-                }
-
-                onTouchStart(e) {
+                // Touch/Mouse
+                const handleStart = (e) => {
                     e.preventDefault();
+                    if (this.gameOver) {
+                        this.restart();
+                    } else if (!this.running) {
+                        this.start();
+                    } else {
+                        this.tRex.jump();
+                    }
+                };
+
+                canvas.addEventListener('touchstart', handleStart);
+                canvas.addEventListener('mousedown', handleStart);
+
+                // Restart button
+                document.getElementById('restartBtn').addEventListener('click', () => {
+                    this.restart();
+                });
+            }
+
+            start() {
+                this.running = true;
+                if (tg) tg.HapticFeedback?.impactOccurred('medium');
+            }
+
+            restart() {
+                this.tRex = new TRex();
+                this.obstacles = [];
+                this.score = 0;
+                this.distance = 0;
+                this.speed = CONFIG.SPEED_INITIAL;
+                this.running = true;
+                this.gameOver = false;
+                this.obstacleTimer = 0;
+                this.clearTime = 0;
+                this.nightTimer = 0;
+                this.nightMode = false;
+                document.body.classList.remove('night');
+                document.getElementById('gameOverScreen').classList.remove('show');
+                this.updateScoreDisplay();
+                if (tg) tg.HapticFeedback?.impactOccurred('medium');
+            }
+
+            checkCollision(box1, box2) {
+                return box1.x < box2.x + box2.width &&
+                       box1.x + box1.width > box2.x &&
+                       box1.y < box2.y + box2.height &&
+                       box1.y + box1.height > box2.y;
+            }
+
+            updateScoreDisplay() {
+                document.getElementById('score').textContent = String(this.score).padStart(5, '0');
+                document.getElementById('highScore').textContent = String(this.highScore).padStart(5, '0');
+            }
+
+            handleGameOver() {
+                this.running = false;
+                this.gameOver = true;
+
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('trexHighScore', this.highScore);
+                    this.updateScoreDisplay();
+                    if (tg) tg.HapticFeedback?.notificationOccurred('success');
+                } else {
+                    if (tg) tg.HapticFeedback?.notificationOccurred('error');
+                }
+
+                document.getElementById('gameOverScreen').classList.add('show');
+            }
+
+            spawnObstacle() {
+                const types = ['cactus_small', 'cactus_large'];
+                if (this.speed > 8) {
+                    types.push('pterodactyl');
+                }
+                
+                const type = types[Math.floor(Math.random() * types.length)];
+                const obstacle = new Obstacle(type, this.speed);
+                this.obstacles.push(obstacle);
+            }
+
+            update(deltaTime) {
+                if (!this.running || this.gameOver) return;
+
+                this.clearTime += deltaTime;
+
+                // Update distance and score
+                this.distance += this.speed * deltaTime / 16.67;
+                const newScore = Math.floor(this.distance * CONFIG.DISTANCE_COEFFICIENT);
+                
+                // Achievement flash
+                if (newScore > this.score && newScore % CONFIG.ACHIEVEMENT_INTERVAL === 0) {
+                    this.achievementFlash = 200;
+                    if (tg) tg.HapticFeedback?.notificationOccurred('success');
+                }
+                
+                this.score = newScore;
+                this.updateScoreDisplay();
+
+                // Speed increase
+                if (this.speed < CONFIG.SPEED_MAX) {
+                    this.speed += CONFIG.SPEED_ACCELERATION * deltaTime;
+                }
+
+                // Night mode toggle
+                this.nightTimer += this.speed * deltaTime / 16.67;
+                if (this.nightTimer >= CONFIG.NIGHT_INTERVAL * 100) {
+                    this.nightMode = !this.nightMode;
+                    document.body.classList.toggle('night', this.nightMode);
+                    this.nightTimer = 0;
+                }
+
+                // Update entities
+                this.tRex.update(deltaTime);
+                this.ground.update(this.speed);
+
+                // Clouds
+                this.clouds.forEach(cloud => cloud.update());
+
+                // Obstacles
+                if (this.clearTime > CONFIG.CLEAR_TIME) {
+                    this.obstacleTimer += deltaTime;
+                    if (this.obstacleTimer >= this.obstacleInterval) {
+                        this.spawnObstacle();
+                        this.obstacleTimer = 0;
+                        this.obstacleInterval = 1000 + Math.random() * 1000;
+                    }
+                }
+
+                this.obstacles.forEach(obstacle => {
+                    obstacle.update(deltaTime);
                     
-                    if (!this.playing) {
-                        this.playIntro();
-                    } else if (!this.crashed) {
-                        if (!this.tRex.jumping && !this.tRex.ducking) {
-                            if (tg) tg.HapticFeedback?.impactOccurred('light');
-                            this.tRex.startJump(this.currentSpeed);
-                        }
-                    } else {
-                        const deltaTime = performance.now() - this.time;
-                        if (deltaTime >= this.config.GAMEOVER_CLEAR_TIME) {
-                            this.restart();
-                        }
+                    // Collision detection
+                    const tRexBox = this.tRex.getCollisionBox();
+                    const obstacleBox = obstacle.getCollisionBox();
+                    
+                    if (this.checkCollision(tRexBox, obstacleBox)) {
+                        this.handleGameOver();
                     }
-                }
+                });
 
-                onTouchEnd(e) {
-                    e.preventDefault();
-                    if (this.playing && !this.crashed) {
-                        this.tRex.endJump();
-                    }
-                }
+                // Remove off-screen obstacles
+                this.obstacles = this.obstacles.filter(o => !o.remove);
 
-                onMouseDown(e) {
-                    this.onTouchStart(e);
-                }
-
-                onMouseUp(e) {
-                    this.onTouchEnd(e);
-                }
-
-                invert() {
-                    if (this.inverted) {
-                        document.body.classList.toggle('inverted', false);
-                        this.inverted = false;
-                    } else {
-                        this.inverted = document.body.classList.toggle('inverted', this.invertTrigger);
-                    }
+                // Achievement flash
+                if (this.achievementFlash > 0) {
+                    this.achievementFlash -= deltaTime;
                 }
             }
 
-            // T-Rex class
-            class Trex {
-                static get config() {
-                    return {
-                        DROP_VELOCITY: -5,
-                        GRAVITY: 0.6,
-                        HEIGHT: 47,
-                        HEIGHT_DUCK: 25,
-                        INIITAL_JUMP_VELOCITY: -10,
-                        INTRO_DURATION: 1500,
-                        MAX_JUMP_HEIGHT: 30,
-                        MIN_JUMP_HEIGHT: 30,
-                        SPEED_DROP_COEFFICIENT: 3,
-                        SPRITE_WIDTH: 262,
-                        START_X_POS: 50,
-                        WIDTH: 44,
-                        WIDTH_DUCK: 59
-                    };
+            draw() {
+                // Clear canvas
+                ctx.fillStyle = this.nightMode ? COLORS.NIGHT.BG : COLORS.DAY.BG;
+                ctx.fillRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+
+                // Draw entities
+                this.clouds.forEach(cloud => cloud.draw(this.nightMode));
+                this.ground.draw(this.nightMode);
+                
+                // Achievement flash (hide score briefly)
+                if (this.achievementFlash <= 0 || Math.floor(this.achievementFlash / 50) % 2 === 0) {
+                    this.obstacles.forEach(obstacle => obstacle.draw(this.nightMode));
                 }
-
-                static get status() {
-                    return {
-                        CRASHED: 'CRASHED',
-                        DUCKING: 'DUCKING',
-                        JUMPING: 'JUMPING',
-                        RUNNING: 'RUNNING',
-                        WAITING: 'WAITING'
-                    };
-                }
-
-                constructor(canvas, width) {
-                    this.canvas = canvas;
-                    this.ctx = canvas.getContext('2d');
-                    this.config = Trex.config;
-                    this.xPos = 0;
-                    this.yPos = 0;
-                    this.groundYPos = 0;
-                    this.currentFrame = 0;
-                    this.currentAnimFrames = [];
-                    this.blinkDelay = 0;
-                    this.blinkCount = 0;
-                    this.animStartTime = 0;
-                    this.timer = 0;
-                    this.msPerFrame = 1000 / FPS;
-                    this.status = Trex.status.WAITING;
-                    this.jumping = false;
-                    this.ducking = false;
-                    this.jumpVelocity = 0;
-                    this.reachedMinHeight = false;
-                    this.speedDrop = false;
-                    this.jumpCount = 0;
-                    this.jumpspotX = 0;
-                    this.playingIntro = false;
-
-                    this.groundYPos = 95;
-                    this.yPos = this.groundYPos;
-                    this.minJumpHeight = this.groundYPos - this.config.MIN_JUMP_HEIGHT;
-
-                    this.draw(0, 0);
-                    this.update(0, Trex.status.WAITING);
-                }
-
-                update(deltaTime, opt_status) {
-                    this.timer += deltaTime;
-
-                    if (opt_status) {
-                        this.status = opt_status;
-                        this.currentFrame = 0;
-                        this.msPerFrame = 1000 / FPS;
-                        this.timer = 0;
-                    }
-
-                    if (this.playingIntro && this.xPos < this.config.START_X_POS) {
-                        this.xPos += Math.round((this.config.START_X_POS / this.config.INTRO_DURATION) * deltaTime);
-                    }
-
-                    if (this.status === Trex.status.WAITING) {
-                        this.blink(performance.now());
-                    } else {
-                        this.draw(this.currentAnimFrames[this.currentFrame], 0);
-                    }
-
-                    if (this.timer >= this.msPerFrame) {
-                        this.currentFrame = this.currentFrame === 1 ? 0 : 1;
-                        this.timer = 0;
-                    }
-
-                    if (this.speedDrop && this.yPos === this.groundYPos) {
-                        this.speedDrop = false;
-                        this.setDuck(true);
-                    }
-                }
-
-                draw(x, y) {
-                    const sourceWidth = this.ducking && this.status !== Trex.status.CRASHED ? this.config.WIDTH_DUCK : this.config.WIDTH;
-                    const sourceHeight = this.config.HEIGHT;
-
-                    // Draw placeholder rectangle (sprite sheet not available)
-                    this.ctx.save();
-                    
-                    if (this.status === Trex.status.CRASHED) {
-                        this.ctx.fillStyle = '#535353';
-                    } else {
-                        this.ctx.fillStyle = '#535353';
-                    }
-
-                    if (this.ducking) {
-                        this.ctx.fillRect(this.xPos, this.yPos + 15, this.config.WIDTH_DUCK, this.config.HEIGHT_DUCK);
-                    } else {
-                        // Body
-                        this.ctx.fillRect(this.xPos, this.yPos, this.config.WIDTH, this.config.HEIGHT);
-                        
-                        // Simple leg animation
-                        const legOffset = this.currentFrame === 1 ? 5 : 0;
-                        this.ctx.fillRect(this.xPos + 5, this.yPos + this.config.HEIGHT, 8, 10 + legOffset);
-                        this.ctx.fillRect(this.xPos + 25, this.yPos + this.config.HEIGHT, 8, 10 - legOffset);
-                    }
-
-                    this.ctx.restore();
-                }
-
-                blink(time) {
-                    const deltaTime = time - this.animStartTime;
-
-                    if (deltaTime >= this.blinkDelay) {
-                        this.draw(this.currentFrame, 0);
-
-                        if (this.currentFrame === 1) {
-                            this.setBlinkDelay();
-                            this.blinkCount++;
-                        }
-
-                        this.currentFrame = this.currentFrame === 1 ? 0 : 1;
-                        this.animStartTime = time;
-                    }
-                }
-
-                setBlinkDelay() {
-                    this.blinkDelay = Math.ceil(Math.random() * 3000);
-                }
-
-                startJump(speed) {
-                    if (!this.jumping) {
-                        this.update(0, Trex.status.JUMPING);
-                        this.jumpVelocity = this.config.INIITAL_JUMP_VELOCITY - (speed / 10);
-                        this.jumping = true;
-                        this.reachedMinHeight = false;
-                        this.speedDrop = false;
-                    }
-                }
-
-                endJump() {
-                    if (this.reachedMinHeight && this.jumpVelocity < this.config.DROP_VELOCITY) {
-                        this.jumpVelocity = this.config.DROP_VELOCITY;
-                    }
-                }
-
-                updateJump(deltaTime) {
-                    const msPerFrame = 1000 / FPS;
-                    const framesElapsed = deltaTime / msPerFrame;
-
-                    if (this.speedDrop) {
-                        this.yPos += Math.round(this.jumpVelocity * this.config.SPEED_DROP_COEFFICIENT * framesElapsed);
-                    } else {
-                        this.yPos += Math.round(this.jumpVelocity * framesElapsed);
-                    }
-
-                    this.jumpVelocity += this.config.GRAVITY * framesElapsed;
-
-                    if (this.yPos < this.minJumpHeight || this.speedDrop) {
-                        this.reachedMinHeight = true;
-                    }
-
-                    if (this.yPos < this.config.MAX_JUMP_HEIGHT || this.speedDrop) {
-                        this.endJump();
-                    }
-
-                    if (this.yPos > this.groundYPos) {
-                        this.reset();
-                        this.jumpCount++;
-                    }
-
-                    this.update(deltaTime);
-                }
-
-                setSpeedDrop() {
-                    this.speedDrop = true;
-                    this.jumpVelocity = 1;
-                }
-
-                setDuck(isDucking) {
-                    if (isDucking && this.status !== Trex.status.DUCKING) {
-                        this.update(0, Trex.status.DUCKING);
-                        this.ducking = true;
-                    } else if (this.status === Trex.status.DUCKING) {
-                        this.update(0, Trex.status.RUNNING);
-                        this.ducking = false;
-                    }
-                }
-
-                reset() {
-                    this.yPos = this.groundYPos;
-                    this.jumpVelocity = 0;
-                    this.jumping = false;
-                    this.ducking = false;
-                    this.update(0, Trex.status.RUNNING);
-                    this.speedDrop = false;
-                    this.jumpCount = 0;
-                }
+                
+                this.tRex.draw(this.nightMode);
             }
 
-            // Horizon class
-            class Horizon {
-                constructor(canvas, dimensions, gapCoefficient) {
-                    this.canvas = canvas;
-                    this.ctx = canvas.getContext('2d');
-                    this.config = {
-                        BG_CLOUD_SPEED: 0.2,
-                        CLOUD_FREQUENCY: 0.5,
-                        HORIZON_HEIGHT: 16,
-                        MAX_CLOUDS: 6
-                    };
-                    this.dimensions = dimensions;
-                    this.gapCoefficient = gapCoefficient;
-                    this.obstacles = [];
-                    this.obstacleHistory = [];
-                    this.horizonOffsets = [0, 0];
-                    this.cloudFrequency = this.config.CLOUD_FREQUENCY;
-                    this.clouds = [];
-                    this.cloudSpeed = this.config.BG_CLOUD_SPEED;
-                    this.horizonLine = null;
-                    this.nightMode = null;
+            loop(timestamp) {
+                const deltaTime = timestamp - this.lastTime;
+                this.lastTime = timestamp;
 
-                    this.horizonLine = new HorizonLine(this.canvas, this.dimensions);
-                }
+                this.update(deltaTime);
+                this.draw();
 
-                update(deltaTime, currentSpeed, updateObstacles, showNightMode) {
-                    this.horizonLine.update(deltaTime, currentSpeed);
-
-                    if (updateObstacles) {
-                        this.updateObstacles(deltaTime, currentSpeed);
-                    }
-                }
-
-                updateObstacles(deltaTime, currentSpeed) {
-                    const updatedObstacles = this.obstacles.slice(0);
-
-                    for (let i = 0; i < this.obstacles.length; i++) {
-                        const obstacle = this.obstacles[i];
-                        obstacle.update(deltaTime, currentSpeed);
-
-                        if (obstacle.remove) {
-                            updatedObstacles.shift();
-                        }
-                    }
-
-                    this.obstacles = updatedObstacles;
-
-                    if (this.obstacles.length > 0) {
-                        const lastObstacle = this.obstacles[this.obstacles.length - 1];
-
-                        if (lastObstacle && !lastObstacle.followingObstacleCreated && lastObstacle.isVisible() && lastObstacle.xPos + lastObstacle.width + lastObstacle.gap < this.dimensions.WIDTH) {
-                            this.addNewObstacle(currentSpeed);
-                            lastObstacle.followingObstacleCreated = true;
-                        }
-                    } else {
-                        this.addNewObstacle(currentSpeed);
-                    }
-                }
-
-                addNewObstacle(currentSpeed) {
-                    const obstacleTypeIndex = Math.floor(Math.random() * Obstacle.types.length);
-                    const obstacleType = Obstacle.types[obstacleTypeIndex];
-
-                    if (this.duplicateObstacleCheck(obstacleType.type) || currentSpeed < obstacleType.minSpeed) {
-                        this.addNewObstacle(currentSpeed);
-                    } else {
-                        const obstacle = new Obstacle(this.ctx, obstacleType, this.dimensions, this.gapCoefficient, currentSpeed);
-                        
-                        this.obstacles.push(obstacle);
-                        this.obstacleHistory.unshift(obstacleType.type);
-                        
-                        if (this.obstacleHistory.length > 2) {
-                            this.obstacleHistory.splice(2);
-                        }
-                    }
-                }
-
-                duplicateObstacleCheck(nextObstacleType) {
-                    let duplicateCount = 0;
-
-                    for (let i = 0; i < this.obstacleHistory.length; i++) {
-                        duplicateCount = this.obstacleHistory[i] === nextObstacleType ? duplicateCount + 1 : 0;
-                    }
-
-                    return duplicateCount >= config.MAX_OBSTACLE_DUPLICATION;
-                }
-
-                reset() {
-                    this.obstacles = [];
-                    this.horizonLine.reset();
-                }
+                requestAnimationFrame((t) => this.loop(t));
             }
+        }
 
-            // HorizonLine class
-            class HorizonLine {
-                constructor(canvas, dimensions) {
-                    this.canvas = canvas;
-                    this.ctx = canvas.getContext('2d');
-                    this.dimensions = dimensions;
-                    this.sourceXPos = [0, dimensions.WIDTH];
-                    this.xPos = [0, dimensions.WIDTH];
-                    this.yPos = 127;
-                    this.bumpThreshold = 0.5;
-
-                    this.draw();
-                }
-
-                draw() {
-                    this.ctx.fillStyle = '#535353';
-                    this.ctx.fillRect(0, this.yPos, this.dimensions.WIDTH, 2);
-                }
-
-                update(deltaTime, speed) {
-                    const increment = Math.floor(speed * (FPS / 1000) * deltaTime);
-
-                    if (this.xPos[0] <= 0) {
-                        this.updateXPos(0, increment);
-                    } else {
-                        this.updateXPos(1, increment);
-                    }
-
-                    this.draw();
-                }
-
-                updateXPos(pos, increment) {
-                    const line1 = pos;
-                    const line2 = pos === 0 ? 1 : 0;
-
-                    this.xPos[line1] -= increment;
-                    this.xPos[line2] = this.xPos[line1] + this.dimensions.WIDTH;
-
-                    if (this.xPos[line1] <= -this.dimensions.WIDTH) {
-                        this.xPos[line1] += this.dimensions.WIDTH * 2;
-                        this.xPos[line2] = this.xPos[line1] - this.dimensions.WIDTH;
-                    }
-                }
-
-                reset() {
-                    this.xPos[0] = 0;
-                    this.xPos[1] = this.dimensions.WIDTH;
-                }
-            }
-
-            // Obstacle class
-            class Obstacle {
-                static get types() {
-                    return [
-                        {
-                            type: 'CACTUS_SMALL',
-                            width: 17,
-                            height: 35,
-                            yPos: 105,
-                            multipleSpeed: 4,
-                            minGap: 120,
-                            minSpeed: 0
-                        },
-                        {
-                            type: 'CACTUS_LARGE',
-                            width: 25,
-                            height: 50,
-                            yPos: 90,
-                            multipleSpeed: 7,
-                            minGap: 120,
-                            minSpeed: 0
-                        },
-                        {
-                            type: 'PTERODACTYL',
-                            width: 46,
-                            height: 40,
-                            yPos: [100, 75, 50],
-                            yPosMobile: [100, 50],
-                            multipleSpeed: 999,
-                            minSpeed: 8.5,
-                            minGap: 150,
-                            numFrames: 2,
-                            frameRate: 1000 / 6,
-                            speedOffset: 0.8
-                        }
-                    ];
-                }
-
-                static get MAX_GAP_COEFFICIENT() {
-                    return 1.5;
-                }
-
-                static get MAX_OBSTACLE_LENGTH() {
-                    return 3;
-                }
-
-                constructor(ctx, type, dimensions, gapCoefficient, speed) {
-                    this.ctx = ctx;
-                    this.typeConfig = type;
-                    this.gapCoefficient = gapCoefficient;
-                    this.size = Math.floor(Math.random() * Obstacle.MAX_OBSTACLE_LENGTH) + 1;
-                    this.dimensions = dimensions;
-                    this.remove = false;
-                    this.xPos = dimensions.WIDTH;
-                    this.yPos = 0;
-                    this.width = 0;
-                    this.gap = 0;
-                    this.speedOffset = 0;
-                    this.currentFrame = 0;
-                    this.timer = 0;
-                    this.followingObstacleCreated = false;
-
-                    this.init(speed);
-                }
-
-                init(speed) {
-                    if (this.typeConfig.type === 'PTERODACTYL') {
-                        const yPosArr = IS_MOBILE ? this.typeConfig.yPosMobile : this.typeConfig.yPos;
-                        this.yPos = yPosArr[Math.floor(Math.random() * yPosArr.length)];
-                    } else {
-                        this.yPos = this.typeConfig.yPos;
-                    }
-
-                    this.width = this.typeConfig.width * this.size;
-                    
-                    if (this.typeConfig.speedOffset) {
-                        this.speedOffset = Math.random() > 0.5 ? this.typeConfig.speedOffset : -this.typeConfig.speedOffset;
-                    }
-
-                    this.gap = this.getGap(this.gapCoefficient, speed);
-                    this.draw();
-                }
-
-                draw() {
-                    this.ctx.fillStyle = '#535353';
-                    
-                    if (this.typeConfig.type === 'PTERODACTYL') {
-                        // Simple pterodactyl representation
-                        const wingOffset = this.currentFrame === 1 ? -5 : 5;
-                        this.ctx.fillRect(this.xPos, this.yPos + wingOffset, this.typeConfig.width, this.typeConfig.height);
-                    } else {
-                        // Cactus
-                        this.ctx.fillRect(this.xPos, this.yPos, this.width, this.typeConfig.height);
-                    }
-                }
-
-                update(deltaTime, speed) {
-                    if (!this.remove) {
-                        if (this.typeConfig.speedOffset) {
-                            speed += this.speedOffset;
-                        }
-
-                        this.xPos -= Math.floor((speed * FPS / 1000) * deltaTime);
-
-                        if (this.typeConfig.numFrames) {
-                            this.timer += deltaTime;
-                            if (this.timer >= this.typeConfig.frameRate) {
-                                this.currentFrame = this.currentFrame === this.typeConfig.numFrames - 1 ? 0 : this.currentFrame + 1;
-                                this.timer = 0;
-                            }
-                        }
-
-                        this.draw();
-
-                        if (!this.isVisible()) {
-                            this.remove = true;
-                        }
-                    }
-                }
-
-                getGap(gapCoefficient, speed) {
-                    const minGap = Math.round(this.width * speed + this.typeConfig.minGap * gapCoefficient);
-                    const maxGap = Math.round(minGap * Obstacle.MAX_GAP_COEFFICIENT);
-                    return Math.floor(Math.random() * (maxGap - minGap + 1)) + minGap;
-                }
-
-                isVisible() {
-                    return this.xPos + this.width > 0;
-                }
-            }
-
-            // DistanceMeter class
-            class DistanceMeter {
-                static get config() {
-                    return {
-                        ACHIEVEMENT_DISTANCE: 100,
-                        COEFFICIENT: 0.025,
-                        FLASH_DURATION: 1000 / 4,
-                        FLASH_ITERATIONS: 3,
-                        MAX_DISTANCE_UNITS: 5
-                    };
-                }
-
-                constructor(canvas, canvasWidth) {
-                    this.canvas = canvas;
-                    this.ctx = canvas.getContext('2d');
-                    this.x = 0;
-                    this.y = 5;
-                    this.currentDistance = 0;
-                    this.maxScore = 0;
-                    this.highScore = 0;
-                    this.container = null;
-                    this.digits = [];
-                    this.achievement = false;
-                    this.defaultString = '';
-                    this.flashTimer = 0;
-                    this.flashIterations = 0;
-                    this.config = DistanceMeter.config;
-                    this.maxScoreUnits = this.config.MAX_DISTANCE_UNITS;
-                    
-                    this.init(canvasWidth);
-                }
-
-                init(width) {
-                    let maxDistanceStr = '';
-
-                    this.calcXPos(width);
-                    this.maxScore = this.maxScoreUnits;
-
-                    for (let i = 0; i < this.maxScoreUnits; i++) {
-                        this.draw(i, 0);
-                        this.defaultString += '0';
-                        maxDistanceStr += '9';
-                    }
-
-                    this.maxScore = parseInt(maxDistanceStr);
-                }
-
-                calcXPos(canvasWidth) {
-                    this.x = canvasWidth - (DistanceMeter.config.MAX_DISTANCE_UNITS * 2 * 10);
-                }
-
-                draw(digitPos, value, opt_highScore) {
-                    const sourceWidth = 10;
-                    const sourceHeight = 13;
-                    const sourceX = value * sourceWidth;
-                    const targetX = digitPos * sourceWidth * 2 + this.x;
-                    const targetY = this.y;
-                    const targetWidth = sourceWidth * 2;
-                    const targetHeight = sourceHeight * 2;
-
-                    // Draw number as text (sprite sheet not available)
-                    this.ctx.save();
-                    this.ctx.fillStyle = opt_highScore ? '#787878' : '#535353';
-                    this.ctx.font = '24px monospace';
-                    this.ctx.fillText(value.toString(), targetX, targetY + targetHeight);
-                    this.ctx.restore();
-
-                    if (opt_highScore) {
-                        // Draw HI prefix
-                        this.ctx.save();
-                        this.ctx.fillStyle = '#787878';
-                        this.ctx.font = '24px monospace';
-                        this.ctx.fillText('HI', this.x - 60, this.y + targetHeight);
-                        this.ctx.restore();
-                    }
-                }
-
-                getActualDistance(distance) {
-                    return distance ? Math.round(distance * this.config.COEFFICIENT) : 0;
-                }
-
-                update(deltaTime, distance) {
-                    let paint = true;
-                    let playSound = false;
-
-                    if (!this.achievement) {
-                        distance = this.getActualDistance(distance);
-
-                        if (distance > this.maxScore && this.maxScoreUnits === this.config.MAX_DISTANCE_UNITS) {
-                            this.maxScoreUnits++;
-                            this.maxScore = parseInt(this.maxScore + '9');
-                        } else {
-                            this.distance = 0;
-                        }
-
-                        if (distance > 0) {
-                            if (distance % this.config.ACHIEVEMENT_DISTANCE === 0) {
-                                this.achievement = true;
-                                this.flashTimer = 0;
-                                playSound = true;
-                            }
-
-                            const distanceStr = (this.defaultString + distance).substr(-this.maxScoreUnits);
-                            this.digits = distanceStr.split('');
-                        } else {
-                            this.digits = this.defaultString.split('');
-                        }
-                    } else {
-                        if (this.flashIterations <= this.config.FLASH_ITERATIONS) {
-                            this.flashTimer += deltaTime;
-
-                            if (this.flashTimer < this.config.FLASH_DURATION) {
-                                paint = false;
-                            } else if (this.flashTimer > this.config.FLASH_DURATION * 2) {
-                                this.flashTimer = 0;
-                                this.flashIterations++;
-                            }
-                        } else {
-                            this.achievement = false;
-                            this.flashIterations = 0;
-                            this.flashTimer = 0;
-                        }
-                    }
-
-                    if (paint) {
-                        for (let i = this.digits.length - 1; i >= 0; i--) {
-                            this.draw(i, parseInt(this.digits[i]));
-                        }
-                    }
-
-                    this.drawHighScore();
-                    return playSound;
-                }
-
-                drawHighScore() {
-                    if (this.highScore > 0) {
-                        const distance = this.getActualDistance(Math.ceil(this.highScore));
-                        const highScoreStr = (this.defaultString + distance).substr(-this.maxScoreUnits);
-                        const digits = highScoreStr.split('');
-
-                        this.ctx.save();
-                        this.ctx.globalAlpha = 0.8;
-                        
-                        for (let i = digits.length - 1; i >= 0; i--) {
-                            this.draw(i - (this.maxScoreUnits + 3), parseInt(digits[i]), true);
-                        }
-                        
-                        this.ctx.restore();
-                    }
-                }
-
-                setHighScore(distance) {
-                    distance = this.getActualDistance(distance);
-                    const highScoreStr = (this.defaultString + distance).substr(-this.maxScoreUnits);
-
-                    this.highScore = parseInt(highScoreStr) || 0;
-                }
-
-                reset(highScore) {
-                    this.update(0, 0);
-                    this.achievement = false;
-                    
-                    if (highScore) {
-                        this.setHighScore(highScore);
-                    }
-                }
-            }
-
-            // GameOverPanel class
-            class GameOverPanel {
-                constructor(canvas, dimensions) {
-                    this.canvas = canvas;
-                    this.ctx = canvas.getContext('2d');
-                    this.canvasDimensions = dimensions;
-
-                    this.draw();
-                }
-
-                updateDimensions(width) {
-                    this.canvasDimensions.WIDTH = width;
-                }
-
-                draw() {
-                    const dimensions = {
-                        TEXT_X: 0,
-                        TEXT_Y: 13,
-                        TEXT_WIDTH: 191,
-                        TEXT_HEIGHT: 11,
-                        RESTART_WIDTH: 36,
-                        RESTART_HEIGHT: 32
-                    };
-
-                    const centerX = this.canvasDimensions.WIDTH / 2;
-
-                    // Game Over text
-                    this.ctx.save();
-                    this.ctx.fillStyle = '#535353';
-                    this.ctx.font = 'bold 24px monospace';
-                    const textMetrics = this.ctx.measureText('G A M E  O V E R');
-                    this.ctx.fillText('G A M E  O V E R', centerX - (textMetrics.width / 2), 50);
-                    
-                    // Restart button (simple square)
-                    this.ctx.fillRect(centerX - 18, 70, dimensions.RESTART_WIDTH, dimensions.RESTART_HEIGHT);
-                    
-                    // Arrow in button
-                    this.ctx.fillStyle = '#f7f7f7';
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(centerX, 78);
-                    this.ctx.lineTo(centerX - 10, 94);
-                    this.ctx.lineTo(centerX + 10, 94);
-                    this.ctx.closePath();
-                    this.ctx.fill();
-                    
-                    this.ctx.restore();
-                }
-            }
-
-            // Initialize the game
-            window.addEventListener('load', () => {
-                new Runner('.interstitial-wrapper');
-            });
-
-        })();
+        // ==================== START GAME ====================
+        const game = new Game();
     </script>
 </body>
 </html>
