@@ -105,7 +105,7 @@
             <div>Счёт: <span id="score">0</span></div>
             <div>❤️ <span id="lives">3</span></div>
         </div>
-        <canvas id="gameCanvas" width="400" height="500"></canvas>
+        <canvas id="gameCanvas"></canvas>
     </div>
 
     <div id="gameOver">
@@ -127,6 +127,9 @@
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        canvas.width = Math.min(400, window.innerWidth - 80);
+        canvas.height = Math.min(500, window.innerHeight - 220);
         
         // Polyfill для roundRect
         if (!CanvasRenderingContext2D.prototype.roundRect) {
