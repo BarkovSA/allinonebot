@@ -116,6 +116,16 @@
 
         const WIDTH = canvas.width;
         const HEIGHT = canvas.height;
+        let gameStarted = false;
+        let lastFrameTime = 0;
+        const FPS_LIMIT = 60;
+        const FRAME_MIN_TIME = 1000 / FPS_LIMIT;
+
+        function startPong() {
+            document.getElementById('startOverlay').classList.add('hidden');
+            gameStarted = true;
+            requestAnimationFrame(gameLoop);
+        }
 
         const PADDLE_WIDTH = 15;
         const PADDLE_HEIGHT = 100;

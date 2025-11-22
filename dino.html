@@ -147,6 +147,8 @@
         let lastFrameTime = 0;
         const FPS_LIMIT = 60;
         const FRAME_MIN_TIME = 1000 / FPS_LIMIT;
+        let legFrame = 0;
+        let legCounter = 0;
 
         function startDino() {
             document.getElementById('startOverlay').classList.add('hidden');
@@ -208,7 +210,38 @@
 
             velocityY += gravity;
             dino.y = Math.min(dino.y + velocityY, dinoY);
-            context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
+            
+            // Анимация ног (только когда на земле)
+            if (dino.y === dinoY) {
+                legCounter++;
+                if (legCounter % 5 === 0) {
+                    legFrame = (legFrame + 1) % 2;
+                }
+            }
+            
+            // Рисуем простого динозавра с анимацией ног
+            context.fillStyle = '#535353';
+            // Тело
+            context.fillRect(dino.x, dino.y, dino.width, dino.height * 0.6);
+            // Голова
+            context.fillRect(dino.x + dino.width * 0.7, dino.y - dino.height * 0.3, dino.width * 0.4, dino.height * 0.4);
+            // Ноги (анимированные)
+            if (dino.y === dinoY) {
+                if (legFrame === 0) {
+                    context.fillRect(dino.x + 10, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
+                    context.fillRect(dino.x + dino.width - 18, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
+                } else {
+                    context.fillRect(dino.x + 5, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
+                    context.fillRect(dino.x + dino.width - 13, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
+                }
+            } else {
+                // В прыжке - статичные ноги
+                context.fillRect(dino.x + 10, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
+                context.fillRect(dino.x + dino.width - 18, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
+            }
+            // Глаз
+            context.fillStyle = gameOver ? '#ff0000' : '#ffffff';
+            context.fillRect(dino.x + dino.width * 0.75, dino.y - dino.height * 0.2, 6, 6);
 
             for (let i = 0; i < cactusArray.length; i++) {
                 let cactus = cactusArray[i];
@@ -282,10 +315,14 @@
         }
 
         function detectCollision(a, b) {
-            return a.x < b.x + b.width &&
-                   a.x + a.width > b.x &&
-                   a.y < b.y + b.height &&
-                   a.y + a.height > b.y;
+            // Уменьшаем хитбокс на 20% для более точной коллизии
+            const marginX = a.width * 0.2;
+            const marginY = a.height * 0.2;
+            
+            return a.x + marginX < b.x + b.width &&
+                   a.x + a.width - marginX > b.x &&
+                   a.y + marginY < b.y + b.height &&
+                   a.y + a.height - marginY > b.y;
         }
     </script>
 </body>

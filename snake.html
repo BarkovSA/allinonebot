@@ -347,10 +347,16 @@
                     break;
             }
 
-            // Check wall collision
-            if (head.x < 0 || head.x >= CANVAS_WIDTH || head.y < 0 || head.y >= CANVAS_HEIGHT) {
-                gameOver();
-                return;
+            // Check wall collision - wrap around
+            if (head.x < 0) {
+                head.x = CANVAS_WIDTH - GRID_SIZE;
+            } else if (head.x >= CANVAS_WIDTH) {
+                head.x = 0;
+            }
+            if (head.y < 0) {
+                head.y = CANVAS_HEIGHT - GRID_SIZE;
+            } else if (head.y >= CANVAS_HEIGHT) {
+                head.y = 0;
             }
 
             // Check self collision

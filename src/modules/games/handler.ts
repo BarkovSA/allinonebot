@@ -15,7 +15,7 @@ export async function handleGamesCallback(ctx: BotContext) {
     .webApp("🦖 T-Rex Runner", `${GAME_URL}/dino`).row()
     .webApp("🟦 Tetris", `${GAME_URL}/tetris`)
     .webApp("👾 Space Invaders", `${GAME_URL}/spaceinvaders`).row()
-    .webApp("💎 Bejeweled", `${GAME_URL}/bejeweled`).row()
+    .webApp("🍬 Candy Crush", `${GAME_URL}/candycrush`).row()
     .text("◀️ Главное меню", "back_to_menu");
 
   await ctx.editMessageText(
@@ -44,10 +44,10 @@ export async function handleGamesCallback(ctx: BotContext) {
    • 4 умных призрака
    • Система жизней
 
-💎 <b>Bejeweled</b>
+🍬 <b>Candy Crush</b>
    • Match-3 головоломка
-   • Красочные камни
-   • Увлекательный геймплей
+   • Механика drag-drop
+   • Комбо система
 
 -----------------------------
 <b>🔥 СОРЕВНОВАНИЯ</b>
@@ -59,7 +59,8 @@ export async function handleGamesCallback(ctx: BotContext) {
 
 👾 <b>Space Invaders</b>
    • Защищай планету
-   • Волны врагов
+   • Бонусы и апгрейды
+   • Система улучшений оружия
 
 -----------------------------
 <b>⚡ АРКАДЫ</b>

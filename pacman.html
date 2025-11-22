@@ -149,8 +149,10 @@
         let lives = 3;
         let gameOver = false;
         let lastFrameTime = 0;
-        const FPS_LIMIT = 60;
+        const FPS_LIMIT = 30;
         const FRAME_MIN_TIME = 1000 / FPS_LIMIT;
+        let mouthOpen = true;
+        let mouthCounter = 0;
 
         function startPacman() {
             document.getElementById('startOverlay').classList.add('hidden');
@@ -297,7 +299,30 @@
 
         function draw() {
             context.clearRect(0, 0, board.width, board.height);
-            context.drawImage(pacman.image, pacman.x, pacman.y, pacman.width, pacman.height);
+            
+            // Animate Pac-Man mouth
+            mouthCounter++;
+            if (mouthCounter % 10 === 0) {
+                mouthOpen = !mouthOpen;
+            }
+            
+            // Draw Pac-Man as circle with mouth animation
+            context.save();
+            context.translate(pacman.x + pacman.width/2, pacman.y + pacman.height/2);
+            
+            // Rotate based on direction
+            if (pacman.velocityX > 0) context.rotate(0);
+            else if (pacman.velocityX < 0) context.rotate(Math.PI);
+            else if (pacman.velocityY > 0) context.rotate(Math.PI/2);
+            else if (pacman.velocityY < 0) context.rotate(-Math.PI/2);
+            
+            context.beginPath();
+            const mouthAngle = mouthOpen ? 0.2 : 0.05;
+            context.arc(0, 0, pacman.width/2, mouthAngle * Math.PI, (2 - mouthAngle) * Math.PI);
+            context.lineTo(0, 0);
+            context.fillStyle = '#FFD700';
+            context.fill();
+            context.restore();
             
             for (let ghost of ghosts.values()) {
                 context.drawImage(ghost.image, ghost.x, ghost.y, ghost.width, ghost.height);

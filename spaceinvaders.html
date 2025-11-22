@@ -14,7 +14,11 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: Arial, sans-serif;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
         }
         canvas {
             border: 2px solid #00ff00;
@@ -22,6 +26,14 @@
             display: block;
             max-width: 100%;
             height: auto;
+        }
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #00ff00;
+            font-size: 16px;
+            text-shadow: 0 0 10px #00ff00;
         }
         .start-overlay {
             position: fixed;
@@ -41,13 +53,14 @@
             border-radius: 20px;
             text-align: center;
             color: #00ff00;
-            max-width: 400px;
+            max-width: 90%;
             border: 3px solid #00ff00;
             box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
         }
         .start-box h2 {
             font-size: 2.5rem;
             margin-bottom: 1rem;
+            text-shadow: 0 0 20px #00ff00;
         }
         .start-box .controls {
             background: rgba(0, 255, 0, 0.1);
@@ -70,10 +83,12 @@
             cursor: pointer;
             margin-top: 1rem;
             transition: all 0.3s;
+            font-family: 'Courier New', monospace;
         }
         .start-btn:hover {
             background: #00dd00;
             transform: scale(1.05);
+            box-shadow: 0 0 20px #00ff00;
         }
         .hidden { display: none; }
     </style>
@@ -88,13 +103,22 @@
                 <p>🔫 Пробел - стрельба</p>
                 <p>👆 Тач - движение и стрельба</p>
             </div>
-            <p>Уничтожьте всех пришельцев!</p>
+            <p>Уничтожайте пришельцев и собирайте бонусы!</p>
+            <p style="color: #ffff00;">💎 Желтые бонусы - двойной выстрел</p>
+            <p style="color: #ff00ff;">💎 Розовые бонусы - тройной выстрел</p>
             <button class="start-btn" onclick="startInvaders()">Начать игру</button>
         </div>
     </div>
-    <canvas id="gameCanvas"></canvas>
+    <div id="gameContainer">
+        <div class="hud">
+            <div>Счёт: <span id="score">0</span></div>
+            <div>Жизни: <span id="lives">3</span></div>
+            <div>Уровень: <span id="level">1</span></div>
+            <div id="weaponLevel" style="color: #ffff00;">Оружие: Обычное</div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
     <script>
-        // Telegram WebApp
         if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
             Telegram.WebApp.ready();
             Telegram.WebApp.expand();
@@ -105,198 +129,259 @@
         canvas.width = 400;
         canvas.height = 600;
 
-        // Player
-        const player = {
-            x: canvas.width / 2,
-            y: canvas.height - 40,
-            width: 40,
-            height: 20,
-            speed: 5
-        };
-
-        // Invaders
-        const invaders = [];
-        const invaderRows = 5;
-        const invaderCols = 6;
-        let invaderDirection = 1;
-        let invaderSpeed = 1;
-
-        for (let row = 0; row < invaderRows; row++) {
-            for (let col = 0; col < invaderCols; col++) {
-                invaders.push({
-                    x: col * 55 + 30,
-                    y: row * 40 + 50,
-                    width: 30,
-                    height: 20,
-                    alive: true
-                });
-            }
-        }
-
-        // Bullets
-        const playerBullets = [];
-        const enemyBullets = [];
-        let canShoot = true;
-        let score = 0;
-        let gameOver = false;
         let gameStarted = false;
         let lastFrameTime = 0;
         const FPS_LIMIT = 60;
         const FRAME_MIN_TIME = 1000 / FPS_LIMIT;
 
+        // Game state
+        let score = 0;
+        let lives = 3;
+        let level = 1;
+        let gameOver = false;
+        let weaponLevel = 1; // 1=single, 2=double, 3=triple
+        let weaponTimer = 0;
+
+        // Player
+        const player = {
+            x: canvas.width / 2 - 20,
+            y: canvas.height - 60,
+            width: 40,
+            height: 30,
+            speed: 5
+        };
+
+        // Invaders
+        let invaders = [];
+        let invaderDirection = 1;
+        let invaderSpeed = 0.5;
+        let invaderDropDistance = 20;
+
+        // Bullets
+        let playerBullets = [];
+        let enemyBullets = [];
+        let canShoot = true;
+
+        // Bonuses
+        let bonuses = [];
+
         function startInvaders() {
             document.getElementById('startOverlay').classList.add('hidden');
             gameStarted = true;
+            initLevel();
+            requestAnimationFrame(gameLoop);
         }
 
-        const keys = {};
-        window.addEventListener('keydown', e => {
-            keys[e.key] = true;
-            if (e.key === ' ' && canShoot && !gameOver) {
-                playerBullets.push({
-                    x: player.x + player.width / 2,
-                    y: player.y,
-                    speed: 5
-                });
-                canShoot = false;
-                setTimeout(() => canShoot = true, 300);
-                
-                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                    Telegram.WebApp.HapticFeedback.impactOccurred('light');
-                }
-            }
-        });
-        window.addEventListener('keyup', e => keys[e.key] = false);
-
-        // Touch controls
-        let touchStartX = 0;
-        canvas.addEventListener('touchstart', e => {
-            touchStartX = e.touches[0].clientX;
-            if (canShoot && !gameOver) {
-                playerBullets.push({
-                    x: player.x + player.width / 2,
-                    y: player.y,
-                    speed: 5
-                });
-                canShoot = false;
-                setTimeout(() => canShoot = true, 300);
-                
-                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                    Telegram.WebApp.HapticFeedback.impactOccurred('light');
-                }
-            }
-            e.preventDefault();
-        });
-
-        canvas.addEventListener('touchmove', e => {
-            const deltaX = e.touches[0].clientX - touchStartX;
-            player.x += deltaX * 0.5;
-            if (player.x < 0) player.x = 0;
-            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
-            touchStartX = e.touches[0].clientX;
-            e.preventDefault();
-        });
-
-        function update() {
-            if (gameOver) return;
-
-            // Move player
-            if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
-            if (keys['ArrowRight'] && player.x < canvas.width - player.width) player.x += player.speed;
-
-            // Move player bullets
-            playerBullets.forEach((bullet, index) => {
-                bullet.y -= bullet.speed;
-                if (bullet.y < 0) playerBullets.splice(index, 1);
-            });
-
-            // Move enemy bullets
-            enemyBullets.forEach((bullet, index) => {
-                bullet.y += bullet.speed;
-                if (bullet.y > canvas.height) {
-                    enemyBullets.splice(index, 1);
-                } else if (
-                    bullet.y + 5 > player.y &&
-                    bullet.y < player.y + player.height &&
-                    bullet.x > player.x &&
-                    bullet.x < player.x + player.width
-                ) {
-                    gameOver = true;
-                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
-                    }
-                    setTimeout(() => {
-                        alert("Игра окончена! Счёт: " + score);
-                        document.location.reload();
-                    }, 100);
-                }
-            });
-
-            // Move invaders
-            let changeDirection = false;
-            invaders.forEach(invader => {
-                if (!invader.alive) return;
-                invader.x += invaderDirection * invaderSpeed;
-                if (invader.x <= 0 || invader.x + invader.width >= canvas.width) {
-                    changeDirection = true;
-                }
-            });
-
-            if (changeDirection) {
-                invaderDirection *= -1;
-                invaders.forEach(invader => invader.y += 10);
-            }
-
-            // Enemy shooting
-            if (Math.random() < 0.01) {
-                const aliveInvaders = invaders.filter(i => i.alive);
-                if (aliveInvaders.length > 0) {
-                    const shooter = aliveInvaders[Math.floor(Math.random() * aliveInvaders.length)];
-                    enemyBullets.push({
-                        x: shooter.x + shooter.width / 2,
-                        y: shooter.y + shooter.height,
-                        speed: 2
+        function initLevel() {
+            invaders = [];
+            const rows = Math.min(3 + level, 6);
+            const cols = 6;
+            const startY = 80;
+            
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    invaders.push({
+                        x: col * 60 + 20,
+                        y: row * 45 + startY,
+                        width: 40,
+                        height: 30,
+                        alive: true,
+                        type: row % 3, // 3 типа врагов
+                        frame: 0
                     });
                 }
             }
+            
+            invaderSpeed = 0.5 + level * 0.2;
+        }
 
-            // Collision detection
-            playerBullets.forEach((bullet, bIndex) => {
-                invaders.forEach(invader => {
-                    if (!invader.alive) return;
-                    if (
-                        bullet.x > invader.x &&
-                        bullet.x < invader.x + invader.width &&
-                        bullet.y > invader.y &&
-                        bullet.y < invader.y + invader.height
-                    ) {
-                        invader.alive = false;
-                        playerBullets.splice(bIndex, 1);
-                        score += 10;
-                        
-                        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                            Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-                        }
-                    }
-                });
-            });
+        function drawPlayer() {
+            // Корпус корабля
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width/2, player.y);
+            ctx.lineTo(player.x, player.y + player.height);
+            ctx.lineTo(player.x + player.width, player.y + player.height);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Кабина
+            ctx.fillStyle = '#00dddd';
+            ctx.fillRect(player.x + player.width/2 - 5, player.y + 8, 10, 10);
+            
+            // Пушки (зависит от уровня оружия)
+            ctx.fillStyle = weaponLevel >= 2 ? '#ffff00' : '#00ff00';
+            if (weaponLevel >= 2) {
+                ctx.fillRect(player.x + 5, player.y + player.height - 8, 4, 8);
+                ctx.fillRect(player.x + player.width - 9, player.y + player.height - 8, 4, 8);
+            }
+            if (weaponLevel >= 3) {
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillRect(player.x + player.width/2 - 2, player.y + player.height - 10, 4, 10);
+            }
+            ctx.fillRect(player.x + player.width/2 - 2, player.y + player.height - 8, 4, 8);
+        }
 
-            // Check win
-            if (invaders.every(i => !i.alive)) {
-                alert("Победа! Счёт: " + score);
-                document.location.reload();
+        function drawInvader(invader) {
+            if (!invader.alive) return;
+            
+            invader.frame = (invader.frame + 0.1) % 2;
+            const animated = Math.floor(invader.frame) === 0;
+            
+            // Разные формы для разных типов
+            ctx.fillStyle = invader.type === 0 ? '#ff0000' : 
+                           invader.type === 1 ? '#ff00ff' : '#ffff00';
+            
+            if (invader.type === 0) {
+                // Краб
+                ctx.fillRect(invader.x + 10, invader.y + 5, 20, 15);
+                ctx.fillRect(invader.x + (animated ? 0 : 5), invader.y + 20, 10, 5);
+                ctx.fillRect(invader.x + (animated ? 30 : 25), invader.y + 20, 10, 5);
+                ctx.fillRect(invader.x + 5, invader.y, 30, 5);
+            } else if (invader.type === 1) {
+                // Осьминог
+                ctx.fillRect(invader.x + 5, invader.y + 5, 30, 15);
+                for (let i = 0; i < 4; i++) {
+                    const legX = invader.x + 5 + i * 10;
+                    const legY = invader.y + 20 + (animated && i % 2 === 0 ? 3 : 0);
+                    ctx.fillRect(legX, legY, 5, 5);
+                }
+            } else {
+                // НЛО
+                ctx.fillRect(invader.x + 10, invader.y, 20, 10);
+                ctx.fillRect(invader.x + 5, invader.y + 10, 30, 5);
+                ctx.fillRect(invader.x + (animated ? 0 : 2), invader.y + 15, 8, 3);
+                ctx.fillRect(invader.x + (animated ? 32 : 30), invader.y + 15, 8, 3);
+            }
+            
+            // Глаза
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(invader.x + 12, invader.y + 8, 4, 4);
+            ctx.fillRect(invader.x + 24, invader.y + 8, 4, 4);
+        }
+
+        function update() {
+            if (!gameStarted || gameOver) return;
+
+            // Weapon timer
+            if (weaponTimer > 0) {
+                weaponTimer--;
+                if (weaponTimer === 0) {
+                    weaponLevel = 1;
+                    updateWeaponDisplay();
+                }
             }
 
-            // Check lose
-            if (invaders.some(i => i.alive && i.y + i.height > player.y)) {
-                gameOver = true;
-                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                    Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            // Move invaders
+            let hitEdge = false;
+            for (let invader of invaders) {
+                if (!invader.alive) continue;
+                invader.x += invaderDirection * invaderSpeed;
+                if (invader.x <= 0 || invader.x + invader.width >= canvas.width) {
+                    hitEdge = true;
                 }
-                setTimeout(() => {
-                    alert("Поражение! Счёт: " + score);
-                    document.location.reload();
-                }, 100);
+            }
+
+            if (hitEdge) {
+                invaderDirection *= -1;
+                for (let invader of invaders) {
+                    invader.y += invaderDropDistance;
+                    if (invader.y + invader.height >= player.y) {
+                        gameOver = true;
+                        showGameOver();
+                    }
+                }
+            }
+
+            // Enemy shooting
+            if (Math.random() < 0.01 && invaders.some(i => i.alive)) {
+                const aliveInvaders = invaders.filter(i => i.alive);
+                const shooter = aliveInvaders[Math.floor(Math.random() * aliveInvaders.length)];
+                enemyBullets.push({
+                    x: shooter.x + shooter.width/2,
+                    y: shooter.y + shooter.height,
+                    speed: 3
+                });
+            }
+
+            // Update bullets
+            playerBullets = playerBullets.filter(bullet => {
+                bullet.y -= bullet.speed;
+                if (bullet.y < 0) return false;
+
+                for (let invader of invaders) {
+                    if (invader.alive && 
+                        bullet.x > invader.x && bullet.x < invader.x + invader.width &&
+                        bullet.y > invader.y && bullet.y < invader.y + invader.height) {
+                        invader.alive = false;
+                        score += (invader.type + 1) * 10;
+                        updateScore();
+                        
+                        // Spawn bonus chance
+                        if (Math.random() < 0.15) {
+                            bonuses.push({
+                                x: invader.x + invader.width/2,
+                                y: invader.y,
+                                type: Math.random() < 0.7 ? 2 : 3,
+                                speed: 2
+                            });
+                        }
+                        
+                        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                            Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                        }
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            enemyBullets = enemyBullets.filter(bullet => {
+                bullet.y += bullet.speed;
+                if (bullet.y > canvas.height) return false;
+
+                if (bullet.x > player.x && bullet.x < player.x + player.width &&
+                    bullet.y > player.y && bullet.y < player.y + player.height) {
+                    lives--;
+                    updateLives();
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                    }
+                    if (lives <= 0) {
+                        gameOver = true;
+                        showGameOver();
+                    }
+                    return false;
+                }
+                return true;
+            });
+
+            // Update bonuses
+            bonuses = bonuses.filter(bonus => {
+                bonus.y += bonus.speed;
+                if (bonus.y > canvas.height) return false;
+
+                if (bonus.x > player.x && bonus.x < player.x + player.width &&
+                    bonus.y > player.y && bonus.y < player.y + player.height) {
+                    weaponLevel = bonus.type;
+                    weaponTimer = 600; // 10 seconds at 60fps
+                    updateWeaponDisplay();
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                    }
+                    return false;
+                }
+                return true;
+            });
+
+            // Check level complete
+            if (!invaders.some(i => i.alive)) {
+                level++;
+                document.getElementById('level').textContent = level;
+                initLevel();
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
             }
         }
 
@@ -304,40 +389,52 @@
             ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw player
-            ctx.fillStyle = '#00ff00';
-            ctx.fillRect(player.x, player.y, player.width, player.height);
+            // Stars background
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 50; i++) {
+                const x = (i * 73) % canvas.width;
+                const y = (i * 97 + Date.now() * 0.01) % canvas.height;
+                ctx.fillRect(x, y, 1, 1);
+            }
 
-            // Draw invaders
-            ctx.fillStyle = '#ff0000';
-            invaders.forEach(invader => {
-                if (invader.alive) {
-                    ctx.fillRect(invader.x, invader.y, invader.width, invader.height);
-                }
-            });
+            drawPlayer();
+            invaders.forEach(drawInvader);
 
             // Draw bullets
-            ctx.fillStyle = '#ffff00';
+            ctx.fillStyle = '#00ff00';
             playerBullets.forEach(bullet => {
                 ctx.fillRect(bullet.x - 2, bullet.y, 4, 10);
             });
 
-            ctx.fillStyle = '#ff00ff';
+            ctx.fillStyle = '#ff0000';
             enemyBullets.forEach(bullet => {
                 ctx.fillRect(bullet.x - 2, bullet.y, 4, 10);
             });
 
-            // Draw score
-            ctx.fillStyle = '#fff';
-            ctx.font = '20px Arial';
-            ctx.fillText('Счёт: ' + score, 10, 25);
+            // Draw bonuses
+            bonuses.forEach(bonus => {
+                ctx.fillStyle = bonus.type === 2 ? '#ffff00' : '#ff00ff';
+                ctx.beginPath();
+                ctx.arc(bonus.x, bonus.y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#000';
+                ctx.fillRect(bonus.x - 2, bonus.y - 2, 4, 4);
+            });
 
             if (gameOver) {
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillStyle = 'rgba(0,0,0,0.8)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#fff';
-                ctx.font = '40px Arial';
-                ctx.fillText('ИГРА ОКОНЧЕНА', canvas.width/2 - 150, canvas.height/2);
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 40px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2 - 40);
+                ctx.fillStyle = '#00ff00';
+                ctx.font = '20px Courier New';
+                ctx.fillText('Счёт: ' + score, canvas.width/2, canvas.height/2);
+                ctx.fillText('Уровень: ' + level, canvas.width/2, canvas.height/2 + 30);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px Courier New';
+                ctx.fillText('Тапните для перезапуска', canvas.width/2, canvas.height/2 + 70);
             }
         }
 
@@ -348,23 +445,137 @@
                 return;
             }
             lastFrameTime = currentTime;
-            
+
             if (!gameStarted) {
                 requestAnimationFrame(gameLoop);
                 return;
             }
-            
+
             if (gameOver) {
-                draw(); // Отрисовка финального экрана
+                draw();
                 return;
             }
-            
+
             update();
             draw();
             requestAnimationFrame(gameLoop);
         }
 
-        gameLoop();
+        function shoot() {
+            if (!canShoot || gameOver) return;
+            
+            canShoot = false;
+            setTimeout(() => canShoot = true, 300);
+
+            if (weaponLevel === 1) {
+                playerBullets.push({
+                    x: player.x + player.width/2,
+                    y: player.y,
+                    speed: 7
+                });
+            } else if (weaponLevel === 2) {
+                playerBullets.push({
+                    x: player.x + 10,
+                    y: player.y,
+                    speed: 7
+                });
+                playerBullets.push({
+                    x: player.x + player.width - 10,
+                    y: player.y,
+                    speed: 7
+                });
+            } else if (weaponLevel === 3) {
+                playerBullets.push({
+                    x: player.x + 10,
+                    y: player.y,
+                    speed: 7
+                });
+                playerBullets.push({
+                    x: player.x + player.width/2,
+                    y: player.y - 5,
+                    speed: 7
+                });
+                playerBullets.push({
+                    x: player.x + player.width - 10,
+                    y: player.y,
+                    speed: 7
+                });
+            }
+
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+
+        function updateLives() {
+            document.getElementById('lives').textContent = lives;
+        }
+
+        function updateWeaponDisplay() {
+            const text = weaponLevel === 1 ? 'Обычное' : 
+                        weaponLevel === 2 ? 'Двойное ⚡' : 'Тройное ⚡⚡';
+            document.getElementById('weaponLevel').textContent = 'Оружие: ' + text;
+        }
+
+        function showGameOver() {
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+            }
+        }
+
+        // Controls
+        const keys = {};
+        window.addEventListener('keydown', e => {
+            keys[e.key] = true;
+            if (e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                shoot();
+            }
+        });
+
+        window.addEventListener('keyup', e => {
+            keys[e.key] = false;
+        });
+
+        setInterval(() => {
+            if (!gameStarted || gameOver) return;
+            if (keys['ArrowLeft'] || keys['a']) {
+                player.x = Math.max(0, player.x - player.speed);
+            }
+            if (keys['ArrowRight'] || keys['d']) {
+                player.x = Math.min(canvas.width - player.width, player.x + player.speed);
+            }
+        }, 16);
+
+        // Touch controls
+        let touchStartX = 0;
+        canvas.addEventListener('touchstart', e => {
+            touchStartX = e.touches[0].clientX;
+            if (gameOver) {
+                location.reload();
+            } else {
+                shoot();
+            }
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            const touchX = e.touches[0].clientX;
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (touchX - rect.left) * (canvas.width / rect.width);
+            player.x = Math.max(0, Math.min(canvas.width - player.width, canvasX - player.width/2));
+            e.preventDefault();
+        }, { passive: false });
+
+        canvas.addEventListener('click', () => {
+            if (gameOver) {
+                location.reload();
+            }
+        });
     </script>
 </body>
 </html>
