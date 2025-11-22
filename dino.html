@@ -122,6 +122,7 @@
         let dinoImg;
         let dinoRun1Img, dinoRun2Img, dinoDeadImg, dinoJumpImg, dinoDuck1Img, dinoDuck2Img;
         let isDucking = false;
+        let uncleBensLogo;
 
         let dino = {
             x: dinoX,
@@ -168,6 +169,14 @@
         // Анимация смерти
         let deathAnimationFrame = 0;
         let deathAnimationComplete = false;
+        
+        // Победа
+        let gameWon = false;
+        const WIN_SCORE = 2000;
+        
+        // Режим отладки - неуязвимость
+        const DEBUG_MODE = true; // Поставь false для обычной игры
+        const DEBUG_WIN_SCORE = 500; // Финиш для отладки
 
         function startDino() {
             document.getElementById('startOverlay').classList.add('hidden');
@@ -215,6 +224,10 @@
             bird1Img.src = "./img/bird1.png";
             bird2Img = new Image();
             bird2Img.src = "./img/bird2.png";
+            
+            // Загрузка логотипа Uncle Ben's
+            uncleBensLogo = new Image();
+            uncleBensLogo.src = "./img/uncle-bens-logo.png";
 
             requestAnimationFrame(update);
             setInterval(placeObstacle, 1000);
@@ -224,7 +237,7 @@
 
         function setupTouchControls() {
             board.addEventListener('touchstart', function(e) {
-                if (gameOver) {
+                if (gameOver || gameWon) {
                     location.reload();
                     return;
                 }
@@ -472,11 +485,18 @@
                 };
 
                 if (detectCollision(dinoHitbox, cactus)) {
-                    gameOver = true;
-                    deathAnimationFrame = 0;
-                    deathAnimationComplete = false;
-                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                    if (!DEBUG_MODE) {
+                        gameOver = true;
+                        deathAnimationFrame = 0;
+                        deathAnimationComplete = false;
+                        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                            Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                        }
+                    } else {
+                        // В режиме отладки просто подсвечиваем столкновение
+                        context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                        context.lineWidth = 3;
+                        context.strokeRect(cactus.x, cactus.y, cactus.width, cactus.height);
                     }
                 }
             }
@@ -500,11 +520,18 @@
                 };
 
                 if (detectCollision(dinoHitbox, bird)) {
-                    gameOver = true;
-                    deathAnimationFrame = 0;
-                    deathAnimationComplete = false;
-                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                    if (!DEBUG_MODE) {
+                        gameOver = true;
+                        deathAnimationFrame = 0;
+                        deathAnimationComplete = false;
+                        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                            Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                        }
+                    } else {
+                        // В режиме отладки просто подсвечиваем столкновение
+                        context.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                        context.lineWidth = 3;
+                        context.strokeRect(bird.x, bird.y, bird.width, bird.height);
                     }
                 }
             }
@@ -512,14 +539,105 @@
             context.fillStyle = isNightMode ? "white" : "black";
             context.font = "20px courier";
             score++;
+            
+            // Проверка победы
+            const targetScore = DEBUG_MODE ? DEBUG_WIN_SCORE : WIN_SCORE;
+            if (score >= targetScore && !gameWon && !gameOver) {
+                gameWon = true;
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+            }
+            
             context.fillText("Счёт: " + score, 5, 20);
             
             // Индикатор времени суток
             context.fillText(isNightMode ? "🌙 Ночь" : "☀️ День", 5, 45);
+            
+            // Индикатор режима отладки
+            if (DEBUG_MODE) {
+                context.fillStyle = '#00ff00';
+                context.font = 'bold 16px courier';
+                context.fillText('🛡️ GOD MODE', 5, 70);
+            }
+            
+            // Экран победы
+            if (gameWon) {
+                context.fillStyle = 'rgba(255, 215, 0, 0.95)';
+                context.fillRect(0, 0, boardWidth, boardHeight);
+                
+                // Uncle Ben's лого (используем картинку)
+                if (uncleBensLogo && uncleBensLogo.complete && uncleBensLogo.naturalWidth > 0) {
+                    // Рисуем логотип по центру вверху
+                    const logoWidth = 250;
+                    const logoHeight = 100;
+                    const logoX = (boardWidth - logoWidth) / 2;
+                    const logoY = 30;
+                    context.drawImage(uncleBensLogo, logoX, logoY, logoWidth, logoHeight);
+                } else {
+                    // Если картинка не загрузилась, рисуем текстом
+                    context.fillStyle = '#003087';
+                    context.font = 'bold 48px Arial';
+                    context.textAlign = 'center';
+                    context.fillText("UNCLE BEN'S", boardWidth/2, 80);
+                }
+                
+                context.textAlign = 'center';
+                
+                // Заголовок
+                context.fillStyle = '#ff0000';
+                context.font = 'bold 36px courier';
+                context.fillText('ПОБЕДА!', boardWidth/2, 180);
+                
+                // Цитата дяди Бена
+                context.fillStyle = '#000000';
+                context.font = 'italic 18px Georgia';
+                context.fillText('"С великой силой', boardWidth/2, 230);
+                context.fillText('приходит великая', boardWidth/2, 255);
+                context.fillText('ответственность"', boardWidth/2, 280);
+                
+                context.font = '14px courier';
+                context.fillStyle = '#333333';
+                context.fillText('- Дядя Бен', boardWidth/2, 310);
+                
+                // Счёт
+                context.fillStyle = '#ff6600';
+                context.font = 'bold 28px courier';
+                context.fillText('Счёт: ' + score, boardWidth/2, 370);
+                
+                // Звёзды вокруг (анимированные)
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2 + (score * 0.05);
+                    const x = boardWidth/2 + Math.cos(angle) * 150;
+                    const y = 250 + Math.sin(angle) * 120;
+                    
+                    // Разные типы звёзд
+                    const starTypes = ['⭐', '✨', '🌟', '💫'];
+                    context.font = '28px Arial';
+                    
+                    // Мерцание
+                    const twinkle = Math.sin(score * 0.1 + i) * 0.5 + 0.5;
+                    context.globalAlpha = 0.5 + twinkle * 0.5;
+                    
+                    context.fillText(starTypes[i % 4], x, y);
+                }
+                
+                context.globalAlpha = 1;
+                
+                // Кнопка продолжения
+                context.fillStyle = '#003087';
+                context.fillRect(boardWidth/2 - 100, 450, 200, 50);
+                context.fillStyle = '#ffffff';
+                context.font = 'bold 18px courier';
+                context.fillText('ПЕРЕЗАПУСТИТЬ', boardWidth/2, 482);
+                
+                context.textAlign = 'left';
+                return;
+            }
         }
 
         function moveDino(e) {
-            if (gameOver) {
+            if (gameOver || gameWon) {
                 location.reload();
                 return;
             }
