@@ -157,6 +157,11 @@
         const FRAME_MIN_TIME = 1000 / FPS_LIMIT;
         let legFrame = 0;
         let legCounter = 0;
+        
+        // День/ночь система
+        let isNightMode = false;
+        let dayNightTimer = 0;
+        const DAY_NIGHT_INTERVAL = 20 * 60; // 20 секунд при 60 FPS
 
         function startDino() {
             document.getElementById('startOverlay').classList.add('hidden');
@@ -228,6 +233,81 @@
             if (!gameStarted || gameOver) {
                 return;
             }
+            
+            // Смена дня и ночи каждые 20 секунд
+            dayNightTimer++;
+            if (dayNightTimer >= DAY_NIGHT_INTERVAL) {
+                dayNightTimer = 0;
+                isNightMode = !isNightMode;
+            }
+            
+            // Фон в зависимости от времени суток
+            if (isNightMode) {
+                // Ночь - тёмный градиент
+                const gradient = context.createLinearGradient(0, 0, 0, boardHeight);
+                gradient.addColorStop(0, '#1a1a2e');
+                gradient.addColorStop(1, '#0f0f1e');
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, boardWidth, boardHeight);
+                
+                // Звёзды
+                context.fillStyle = '#ffffff';
+                for (let i = 0; i < 30; i++) {
+                    const x = (i * 73 + score) % boardWidth;
+                    const y = (i * 97) % boardHeight;
+                    context.fillRect(x, y, 2, 2);
+                }
+                
+                // Луна
+                context.fillStyle = '#f4f4f4';
+                context.beginPath();
+                context.arc(boardWidth - 80, 80, 30, 0, Math.PI * 2);
+                context.fill();
+                context.fillStyle = '#1a1a2e';
+                context.beginPath();
+                context.arc(boardWidth - 70, 75, 25, 0, Math.PI * 2);
+                context.fill();
+            } else {
+                // День - светлый фон
+                const gradient = context.createLinearGradient(0, 0, 0, boardHeight);
+                gradient.addColorStop(0, '#87CEEB');
+                gradient.addColorStop(1, '#E0F6FF');
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, boardWidth, boardHeight);
+                
+                // Солнце
+                context.fillStyle = '#FFD700';
+                context.beginPath();
+                context.arc(boardWidth - 80, 80, 30, 0, Math.PI * 2);
+                context.fill();
+                
+                // Лучи солнца
+                context.strokeStyle = '#FFD700';
+                context.lineWidth = 3;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i * Math.PI / 4) + (score * 0.01);
+                    context.beginPath();
+                    context.moveTo(boardWidth - 80, 80);
+                    context.lineTo(
+                        boardWidth - 80 + Math.cos(angle) * 45,
+                        80 + Math.sin(angle) * 45
+                    );
+                    context.stroke();
+                }
+                
+                // Облака
+                context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                for (let i = 0; i < 3; i++) {
+                    const cloudX = ((i * 150 + score * 0.3) % (boardWidth + 100)) - 50;
+                    const cloudY = 100 + i * 50;
+                    context.beginPath();
+                    context.arc(cloudX, cloudY, 20, 0, Math.PI * 2);
+                    context.arc(cloudX + 25, cloudY, 25, 0, Math.PI * 2);
+                    context.arc(cloudX + 50, cloudY, 20, 0, Math.PI * 2);
+                    context.fill();
+                }
+            }
+            
             context.clearRect(0, 0, board.width, board.height);
 
             velocityY += gravity;
@@ -290,6 +370,9 @@
             context.font = "20px courier";
             score++;
             context.fillText("Счёт: " + score, 5, 20);
+            
+            // Индикатор времени суток
+            context.fillText(isNightMode ? "🌙 Ночь" : "☀️ День", 5, 45);
         }
 
         function moveDino(e) {
