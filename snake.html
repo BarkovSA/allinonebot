@@ -285,6 +285,12 @@
         let food = { x: 0, y: 0 };
         let direction = 'RIGHT';
         let nextDirection = 'RIGHT';
+        
+        // Victory system
+        let gameWon = false;
+        const WIN_SCORE = 300;
+        const EXTENDED_WIN_SCORE = 500;
+        let continueToExtended = false;
 
         // Color scheme
         const colors = {
@@ -372,6 +378,18 @@
                 gameState.score += SCORE_PER_FOOD;
                 updateScoreDisplay();
                 generateFood();
+                
+                // Check victory
+                const targetScore = continueToExtended ? EXTENDED_WIN_SCORE : WIN_SCORE;
+                if (gameState.score >= targetScore && !gameWon) {
+                    gameWon = true;
+                    gameState.isRunning = false;
+                    clearInterval(gameState.gameLoopInterval);
+                    if (window.Telegram?.WebApp?.HapticFeedback) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                    }
+                    return;
+                }
                 
                 // Haptic feedback
                 if (window.Telegram?.WebApp?.HapticFeedback) {
@@ -467,6 +485,50 @@
             ctx.beginPath();
             ctx.arc(food.x + GRID_SIZE / 2, food.y + GRID_SIZE / 2, GRID_SIZE / 2 - 2, 0, Math.PI * 2);
             ctx.fill();
+            
+            // Victory screen
+            if (gameWon) {
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.95)';
+                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 36px Poppins';
+                ctx.textAlign = 'center';
+                ctx.fillText('ПОБЕДА!', CANVAS_WIDTH/2, 120);
+                
+                ctx.font = '24px Poppins';
+                ctx.fillText('Счёт: ' + gameState.score, CANVAS_WIDTH/2, 170);
+                
+                // Stars
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * Math.PI * 2 + (Date.now() * 0.002);
+                    const x = CANVAS_WIDTH/2 + Math.cos(angle) * 80;
+                    const y = 220 + Math.sin(angle) * 40;
+                    ctx.font = '24px Arial';
+                    ctx.fillText('⭐', x, y);
+                }
+                
+                // Buttons
+                if (!continueToExtended && gameState.score < EXTENDED_WIN_SCORE) {
+                    ctx.fillStyle = '#007bff';
+                    ctx.fillRect(CANVAS_WIDTH/2 - 160, 300, 140, 45);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 14px Poppins';
+                    ctx.fillText('ПРОДОЛЖИТЬ', CANVAS_WIDTH/2 - 90, 328);
+                } else {
+                    ctx.fillStyle = '#28a745';
+                    ctx.fillRect(CANVAS_WIDTH/2 - 160, 300, 140, 45);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 14px Poppins';
+                    ctx.fillText('НОВАЯ ИГРА', CANVAS_WIDTH/2 - 90, 328);
+                }
+                
+                ctx.fillStyle = '#ffc107';
+                ctx.fillRect(CANVAS_WIDTH/2 + 20, 300, 140, 45);
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 14px Poppins';
+                ctx.fillText('РЕКОРДЫ', CANVAS_WIDTH/2 + 90, 328);
+            }
         }
 
         // Game loop
@@ -608,6 +670,30 @@
         canvas.addEventListener('touchend', (e) => {
             const touchEndX = e.changedTouches[0].clientX;
             const touchEndY = e.changedTouches[0].clientY;
+            
+            // Victory buttons
+            if (gameWon) {
+                const rect = canvas.getBoundingClientRect();
+                const x = (touchEndX - rect.left) * (CANVAS_WIDTH / rect.width);
+                const y = (touchEndY - rect.top) * (CANVAS_HEIGHT / rect.height);
+                
+                if (x >= CANVAS_WIDTH/2 - 160 && x <= CANVAS_WIDTH/2 - 20 &&
+                    y >= 300 && y <= 345) {
+                    if (!continueToExtended && gameState.score < EXTENDED_WIN_SCORE) {
+                        continueToExtended = true;
+                        gameWon = false;
+                        gameState.isRunning = true;
+                        startGameLoop();
+                    } else {
+                        location.reload();
+                    }
+                }
+                else if (x >= CANVAS_WIDTH/2 + 20 && x <= CANVAS_WIDTH/2 + 160 &&
+                         y >= 300 && y <= 345) {
+                    alert('Ваш рекорд: ' + gameState.score + ' очков!\nЛучший результат: ' + gameState.highScore);
+                }
+                return;
+            }
             
             const deltaX = touchEndX - touchStartX;
             const deltaY = touchEndY - touchStartY;

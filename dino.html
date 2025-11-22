@@ -119,7 +119,6 @@
         let dinoHeight = 75;
         let dinoX = 50;
         let dinoY = boardHeight - dinoHeight;
-        let dinoImg;
         let dinoRun1Img, dinoRun2Img, dinoDeadImg, dinoJumpImg, dinoDuck1Img, dinoDuck2Img;
         let isDucking = false;
         let uncleBensLogo;
@@ -173,6 +172,8 @@
         // Победа
         let gameWon = false;
         const WIN_SCORE = 2000;
+        const EXTENDED_WIN_SCORE = 4000;
+        let continueToExtended = false;
         
         // Режим отладки - неуязвимость
         const DEBUG_MODE = false; // Поставь false для обычной игры
@@ -190,9 +191,6 @@
             context = board.getContext("2d");
 
             // Загрузка спрайтов динозавра
-            dinoImg = new Image();
-            dinoImg.src = "./img/dino.png";
-            
             dinoRun1Img = new Image();
             dinoRun1Img.src = "./img/dino-run1.png";
             
@@ -237,10 +235,31 @@
 
         function setupTouchControls() {
             board.addEventListener('touchstart', function(e) {
-                if (gameOver || gameWon) {
+                if (gameOver) {
                     location.reload();
                     return;
                 }
+                
+                // Проверяем клик по кнопкам на экране победы
+                if (gameWon) {
+                    const rect = board.getBoundingClientRect();
+                    const x = e.touches[0].clientX - rect.left;
+                    const y = e.touches[0].clientY - rect.top;
+                    
+                    // Кнопка "Продолжить"
+                    if (x >= boardWidth/2 - 180 && x <= boardWidth/2 - 180 + 160 &&
+                        y >= 450 && y <= 450 + 50) {
+                        continueGame();
+                    }
+                    // Кнопка "Рекорды"
+                    else if (x >= boardWidth/2 + 20 && x <= boardWidth/2 + 20 + 160 &&
+                             y >= 450 && y <= 450 + 50) {
+                        showRecords();
+                    }
+                    e.preventDefault();
+                    return;
+                }
+                
                 if (dino.y == dinoY) {
                     velocityY = -10;
                     if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
@@ -541,7 +560,11 @@
             score++;
             
             // Проверка победы
-            const targetScore = DEBUG_MODE ? DEBUG_WIN_SCORE : WIN_SCORE;
+            let targetScore = DEBUG_MODE ? DEBUG_WIN_SCORE : WIN_SCORE;
+            if (continueToExtended) {
+                targetScore = EXTENDED_WIN_SCORE;
+            }
+            
             if (score >= targetScore && !gameWon && !gameOver) {
                 gameWon = true;
                 if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
@@ -624,21 +647,69 @@
                 
                 context.globalAlpha = 1;
                 
-                // Кнопка продолжения
-                context.fillStyle = '#003087';
-                context.fillRect(boardWidth/2 - 100, 450, 200, 50);
-                context.fillStyle = '#ffffff';
-                context.font = 'bold 18px courier';
-                context.fillText('ПЕРЕЗАПУСТИТЬ', boardWidth/2, 482);
+                // Две кнопки
+                if (!continueToExtended && targetScore !== EXTENDED_WIN_SCORE) {
+                    // Кнопка "Продолжить до 4000"
+                    context.fillStyle = '#28a745';
+                    context.fillRect(boardWidth/2 - 180, 450, 160, 50);
+                    context.fillStyle = '#ffffff';
+                    context.font = 'bold 14px courier';
+                    context.fillText('ПРОДОЛЖИТЬ', boardWidth/2 - 100, 472);
+                    context.font = '12px courier';
+                    context.fillText('(до 4000)', boardWidth/2 - 100, 490);
+                } else {
+                    // Кнопка "Новая игра" если уже дошли до 4000
+                    context.fillStyle = '#007bff';
+                    context.fillRect(boardWidth/2 - 180, 450, 160, 50);
+                    context.fillStyle = '#ffffff';
+                    context.font = 'bold 14px courier';
+                    context.fillText('НОВАЯ ИГРА', boardWidth/2 - 100, 482);
+                }
+                
+                // Кнопка "Рекорды"
+                context.fillStyle = '#ffc107';
+                context.fillRect(boardWidth/2 + 20, 450, 160, 50);
+                context.fillStyle = '#000000';
+                context.font = 'bold 16px courier';
+                context.fillText('РЕКОРДЫ', boardWidth/2 + 100, 482);
                 
                 context.textAlign = 'left';
                 return;
             }
         }
 
+        function continueGame() {
+            continueToExtended = true;
+            gameWon = false;
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+            }
+        }
+        
+        function showRecords() {
+            alert('Ваш рекорд: ' + score + ' очков!\n\nТаблица рекордов в разработке...');
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+        }
+
         function moveDino(e) {
-            if (gameOver || gameWon) {
+            if (gameOver) {
                 location.reload();
+                return;
+            }
+            
+            // На экране победы Enter = продолжить, R = рекорды
+            if (gameWon) {
+                if (e.code === 'Enter' || e.code === 'Space') {
+                    if (!continueToExtended && score < EXTENDED_WIN_SCORE) {
+                        continueGame();
+                    } else {
+                        location.reload();
+                    }
+                } else if (e.code === 'KeyR') {
+                    showRecords();
+                }
                 return;
             }
 

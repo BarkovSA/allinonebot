@@ -164,6 +164,12 @@
 
         // Bonuses
         let bonuses = [];
+        
+        // Victory system
+        let gameWon = false;
+        const WIN_LEVEL = 5;
+        const EXTENDED_WIN_LEVEL = 10;
+        let continueToExtended = false;
 
         function startInvaders() {
             document.getElementById('startOverlay').classList.add('hidden');
@@ -378,9 +384,19 @@
             if (!invaders.some(i => i.alive)) {
                 level++;
                 document.getElementById('level').textContent = level;
-                initLevel();
-                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
-                    Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                
+                // Check victory
+                const targetLevel = continueToExtended ? EXTENDED_WIN_LEVEL : WIN_LEVEL;
+                if (level > targetLevel && !gameWon) {
+                    gameWon = true;
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                    }
+                } else {
+                    initLevel();
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                    }
                 }
             }
         }
@@ -435,6 +451,50 @@
                 ctx.fillStyle = '#ffffff';
                 ctx.font = '16px Courier New';
                 ctx.fillText('Тапните для перезапуска', canvas.width/2, canvas.height/2 + 70);
+            }
+            
+            if (gameWon) {
+                ctx.fillStyle = 'rgba(0,255,0,0.9)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 36px Courier New';
+                ctx.textAlign = 'center';
+                ctx.fillText('ПОБЕДА!', canvas.width/2, 100);
+                
+                ctx.font = '24px Courier New';
+                ctx.fillText('Уровень: ' + level, canvas.width/2, 150);
+                ctx.fillText('Счёт: ' + score, canvas.width/2, 185);
+                
+                // Stars
+                for (let i = 0; i < 5; i++) {
+                    const angle = (i / 5) * Math.PI * 2 + (Date.now() * 0.002);
+                    const x = canvas.width/2 + Math.cos(angle) * 80;
+                    const y = 240 + Math.sin(angle) * 40;
+                    ctx.font = '24px Arial';
+                    ctx.fillText('⭐', x, y);
+                }
+                
+                // Buttons
+                if (!continueToExtended && level <= WIN_LEVEL) {
+                    ctx.fillStyle = '#007bff';
+                    ctx.fillRect(canvas.width/2 - 160, 320, 140, 45);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 14px Courier New';
+                    ctx.fillText('ПРОДОЛЖИТЬ', canvas.width/2 - 90, 348);
+                } else {
+                    ctx.fillStyle = '#28a745';
+                    ctx.fillRect(canvas.width/2 - 160, 320, 140, 45);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 14px Courier New';
+                    ctx.fillText('НОВАЯ ИГРА', canvas.width/2 - 90, 348);
+                }
+                
+                ctx.fillStyle = '#ffc107';
+                ctx.fillRect(canvas.width/2 + 20, 320, 140, 45);
+                ctx.fillStyle = '#000000';
+                ctx.font = 'bold 14px Courier New';
+                ctx.fillText('РЕКОРДЫ', canvas.width/2 + 90, 348);
             }
         }
 
@@ -571,9 +631,32 @@
             e.preventDefault();
         }, { passive: false });
 
-        canvas.addEventListener('click', () => {
+        canvas.addEventListener('click', (e) => {
             if (gameOver) {
                 location.reload();
+                return;
+            }
+            
+            if (gameWon) {
+                const rect = canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+                const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+                
+                // Continue button
+                if (x >= canvas.width/2 - 160 && x <= canvas.width/2 - 20 &&
+                    y >= 320 && y <= 365) {
+                    if (!continueToExtended && level <= WIN_LEVEL) {
+                        continueToExtended = true;
+                        gameWon = false;
+                    } else {
+                        location.reload();
+                    }
+                }
+                // Records button
+                else if (x >= canvas.width/2 + 20 && x <= canvas.width/2 + 160 &&
+                         y >= 320 && y <= 365) {
+                    alert('Ваш рекорд:\nУровень: ' + level + '\nСчёт: ' + score);
+                }
             }
         });
     </script>
