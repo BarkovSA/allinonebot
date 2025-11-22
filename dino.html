@@ -1,14 +1,292 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport", content="width=device-width, initial-scale=1.0">
-        <title>Chrome Dinosaur Game</title>
-        <link rel="stylesheet" href="dino.css">
-        <script src="dino.js"></script>
-    </head>
-    <body>
-        <h1>Chrome Dinosaur Game</h1>
-        <canvas id="board"></canvas>
-    </body>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome T-Rex Runner</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+            background: linear-gradient(to bottom, #f7f7f7, #e0e0e0);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #535353;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        #board {
+            background-color: #fff;
+            border: 3px solid #535353;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 100%;
+            height: auto;
+        }
+        .start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .start-box {
+            background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            color: #333;
+            max-width: 400px;
+            border: 3px solid #8B4513;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .start-box h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .start-box .controls {
+            background: rgba(255, 255, 255, 0.7);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            text-align: left;
+        }
+        .start-box .controls p {
+            margin: 0.5rem 0;
+        }
+        .start-btn {
+            background: #8B4513;
+            border: none;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s;
+        }
+        .start-btn:hover {
+            background: #654321;
+            transform: scale(1.05);
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-box">
+            <h2>🦖 T-Rex Runner</h2>
+            <div class="controls">
+                <p><strong>Управление:</strong></p>
+                <p>🖱️ Клик / Пробел - прыжок</p>
+                <p>👆 Тап - прыжок (touch)</p>
+            </div>
+            <p>Перепрыгивайте кактусы и набирайте очки!</p>
+            <button class="start-btn" onclick="startDino()">Начать игру</button>
+        </div>
+    </div>
+    <h1>🦖 T-Rex Runner</h1>
+    <canvas id="board"></canvas>
+
+    <script>
+        // Telegram WebApp
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+
+        let board;
+        let boardWidth = 400;
+        let boardHeight = 600;
+        let context;
+
+        let dinoWidth = 70;
+        let dinoHeight = 75;
+        let dinoX = 50;
+        let dinoY = boardHeight - dinoHeight;
+        let dinoImg;
+
+        let dino = {
+            x: dinoX,
+            y: dinoY,
+            width: dinoWidth,
+            height: dinoHeight
+        };
+
+        let cactusArray = [];
+        let cactus1Width = 28;
+        let cactus2Width = 55;
+        let cactus3Width = 82;
+        let cactusHeight = 70;
+        let cactusX = 700;
+        let cactusY = boardHeight - cactusHeight;
+
+        let cactus1Img, cactus2Img, cactus3Img;
+
+        let velocityX = -8;
+        let velocityY = 0;
+        let gravity = 0.4;
+
+        let gameOver = false;
+        let score = 0;
+        let gameStarted = false;
+        let lastFrameTime = 0;
+        const FPS_LIMIT = 60;
+        const FRAME_MIN_TIME = 1000 / FPS_LIMIT;
+
+        function startDino() {
+            document.getElementById('startOverlay').classList.add('hidden');
+            gameStarted = true;
+        }
+
+        window.onload = function() {
+            board = document.getElementById("board");
+            board.height = boardHeight;
+            board.width = boardWidth;
+            context = board.getContext("2d");
+
+            dinoImg = new Image();
+            dinoImg.src = "./img/dino.png";
+            dinoImg.onload = function() {
+                context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
+            };
+
+            cactus1Img = new Image();
+            cactus1Img.src = "./img/cactus1.png";
+            cactus2Img = new Image();
+            cactus2Img.src = "./img/cactus2.png";
+            cactus3Img = new Image();
+            cactus3Img.src = "./img/cactus3.png";
+
+            requestAnimationFrame(update);
+            setInterval(placeCactus, 1000);
+            document.addEventListener("keydown", moveDino);
+            setupTouchControls();
+        };
+
+        function setupTouchControls() {
+            board.addEventListener('touchstart', function(e) {
+                if (gameOver) {
+                    location.reload();
+                    return;
+                }
+                if (dino.y == dinoY) {
+                    velocityY = -10;
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                    }
+                }
+                e.preventDefault();
+            }, false);
+        }
+
+        function update(currentTime) {
+            requestAnimationFrame(update);
+            
+            const deltaTime = currentTime - lastFrameTime;
+            if (deltaTime < FRAME_MIN_TIME) return;
+            lastFrameTime = currentTime;
+            
+            if (!gameStarted || gameOver) {
+                return;
+            }
+            context.clearRect(0, 0, board.width, board.height);
+
+            velocityY += gravity;
+            dino.y = Math.min(dino.y + velocityY, dinoY);
+            context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
+
+            for (let i = 0; i < cactusArray.length; i++) {
+                let cactus = cactusArray[i];
+                cactus.x += velocityX;
+                context.drawImage(cactus.img, cactus.x, cactus.y, cactus.width, cactus.height);
+
+                if (detectCollision(dino, cactus)) {
+                    gameOver = true;
+                    dinoImg.src = "./img/dino-dead.png";
+                    dinoImg.onload = function() {
+                        context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
+                    };
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                    }
+                }
+            }
+
+            context.fillStyle = "black";
+            context.font = "20px courier";
+            score++;
+            context.fillText("Счёт: " + score, 5, 20);
+        }
+
+        function moveDino(e) {
+            if (gameOver) {
+                location.reload();
+                return;
+            }
+
+            if ((e.code == "Space" || e.code == "ArrowUp") && dino.y == dinoY) {
+                velocityY = -10;
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                }
+            }
+        }
+
+        function placeCactus() {
+            if (gameOver) {
+                return;
+            }
+
+            let cactus = {
+                img: null,
+                x: cactusX,
+                y: cactusY,
+                width: null,
+                height: cactusHeight
+            };
+
+            let placeCactusChance = Math.random();
+
+            if (placeCactusChance > 0.90) {
+                cactus.img = cactus3Img;
+                cactus.width = cactus3Width;
+                cactusArray.push(cactus);
+            } else if (placeCactusChance > 0.70) {
+                cactus.img = cactus2Img;
+                cactus.width = cactus2Width;
+                cactusArray.push(cactus);
+            } else if (placeCactusChance > 0.50) {
+                cactus.img = cactus1Img;
+                cactus.width = cactus1Width;
+                cactusArray.push(cactus);
+            }
+
+            if (cactusArray.length > 5) {
+                cactusArray.shift();
+            }
+        }
+
+        function detectCollision(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+    </script>
+</body>
 </html>

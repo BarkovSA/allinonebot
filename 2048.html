@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2048</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #776e65;
+            font-size: 80px;
+            margin: 20px;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #776e65;
+            font-size: 24px;
+            margin: 10px;
+        }
+        #board {
+            width: 400px;
+            height: 400px;
+            background-color: #bbada0;
+            border: 7px solid #bbada0;
+            border-radius: 10px;
+            margin: 20px auto;
+            display: flex;
+            flex-wrap: wrap;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .tile {
+            width: 90px;
+            height: 90px;
+            border: 5px solid #bbada0;
+            border-radius: 5px;
+            font-size: 40px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.15s ease;
+        }
+        .x2 { background-color: #eee4da; color: #727371; }
+        .x4 { background-color: #ece0ca; color: #727371; }
+        .x8 { background-color: #f4b17a; color: white; }
+        .x16 { background-color: #f59575; color: white; }
+        .x32 { background-color: #f57c5f; color: white; }
+        .x64 { background-color: #f65d3b; color: white; }
+        .x128 { background-color: #edce71; color: white; }
+        .x256 { background-color: #edcc63; color: white; }
+        .x512 { background-color: #edc651; color: white; }
+        .x1024 { background-color: #eec744; color: white; font-size: 35px; }
+        .x2048 { background-color: #ecc230; color: white; font-size: 35px; }
+        .x4096 { background-color: #fe3d3d; color: white; font-size: 30px; }
+        .x8192 { background-color: #ff2020; color: white; font-size: 30px; }
+        .start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .start-box {
+            background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            color: #776e65;
+            max-width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .start-box h2 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        .start-box .controls {
+            background: rgba(187, 173, 160, 0.3);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            text-align: left;
+        }
+        .start-box .controls p {
+            margin: 0.5rem 0;
+        }
+        .start-btn {
+            background: #8f7a66;
+            border: none;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s;
+        }
+        .start-btn:hover {
+            background: #776e65;
+            transform: scale(1.05);
+        }
+        .hidden { display: none; }
+        @media (max-width: 500px) {
+            h1 { font-size: 50px; }
+            #board { width: 320px; height: 320px; }
+            .tile { width: 70px; height: 70px; font-size: 32px; }
+            .x1024, .x2048 { font-size: 28px; }
+            .x4096, .x8192 { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-box">
+            <h2>2048</h2>
+            <div class="controls">
+                <p><strong>Управление:</strong></p>
+                <p>⬆️⬇️⬅️➡️ Стрелки - движение</p>
+                <p>👆 Свайп - движение (touch)</p>
+            </div>
+            <p style="margin-top: 1rem;">Объединяйте плитки с одинаковыми числами!<br>Цель: добраться до 2048.</p>
+            <button class="start-btn" onclick="start2048()">Начать игру</button>
+        </div>
+    </div>
+    <h1>2048</h1>
+    <h2>Счёт: <span id="score">0</span></h2>
+    <div id="board"></div>
+
+    <script>
+        // Telegram WebApp
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+
+        let board;
+        let score = 0;
+        const rows = 4;
+        const columns = 4;
+
+        window.onload = function() {
+            setGame();
+        }
+
+        function setGame() {
+            board = [
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0]
+            ];
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < columns; c++) {
+                    let tile = document.createElement("div");
+                    tile.id = r.toString() + "-" + c.toString();
+                    let num = board[r][c];
+                    updateTile(tile, num);
+                    document.getElementById("board").append(tile);
+                }
+            }
+            setTwo();
+            setTwo();
+        }
+
+        function updateTile(tile, num) {
+            tile.innerText = "";
+            tile.classList.value = "";
+            tile.classList.add("tile");
+            if (num > 0) {
+                tile.innerText = num.toString();
+                if (num <= 4096) {
+                    tile.classList.add("x" + num.toString());
+                } else {
+                    tile.classList.add("x8192");
+                }
+            }
+        }
+
+        document.addEventListener('keyup', (e) => {
+            if (!gameStarted) return;
+            if (e.code == "ArrowLeft") {
+                slideLeft();
+                setTwo();
+            } else if (e.code == "ArrowRight") {
+                slideRight();
+                setTwo();
+            } else if (e.code == "ArrowUp") {
+                slideUp();
+                setTwo();
+            } else if (e.code == "ArrowDown") {
+                slideDown();
+                setTwo();
+            }
+            document.getElementById("score").innerText = score;
+
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+        });
+
+        // Touch controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            touchStartX = e.changedTouches[0].screenX;
+            touchStartY = e.changedTouches[0].screenY;
+        }, false);
+
+        document.addEventListener('touchend', function(e) {
+            touchEndX = e.changedTouches[0].screenX;
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, false);
+
+        function handleSwipe() {
+            if (!gameStarted) return;
+            const deltaX = touchEndX - touchStartX;
+            const deltaY = touchEndY - touchStartY;
+            const minSwipeDistance = 30;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                if (Math.abs(deltaX) > minSwipeDistance) {
+                    if (deltaX > 0) {
+                        slideRight();
+                        setTwo();
+                    } else {
+                        slideLeft();
+                        setTwo();
+                    }
+                }
+            } else {
+                if (Math.abs(deltaY) > minSwipeDistance) {
+                    if (deltaY > 0) {
+                        slideDown();
+                        setTwo();
+                    } else {
+                        slideUp();
+                        setTwo();
+                    }
+                }
+            }
+            document.getElementById("score").innerText = score;
+
+            if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                Telegram.WebApp.HapticFeedback.impactOccurred('light');
+            }
+        }
+
+        function filterZero(row) {
+            return row.filter(num => num != 0);
+        }
+
+        function slide(row) {
+            row = filterZero(row);
+            for (let i = 0; i < row.length - 1; i++) {
+                if (row[i] == row[i + 1]) {
+                    row[i] *= 2;
+                    row[i + 1] = 0;
+                    score += row[i];
+
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+                    }
+                }
+            }
+            row = filterZero(row);
+            while (row.length < columns) {
+                row.push(0);
+            }
+            return row;
+        }
+
+        function slideLeft() {
+            for (let r = 0; r < rows; r++) {
+                let row = board[r];
+                row = slide(row);
+                board[r] = row;
+                for (let c = 0; c < columns; c++) {
+                    let tile = document.getElementById(r.toString() + "-" + c.toString());
+                    let num = board[r][c];
+                    updateTile(tile, num);
+                }
+            }
+        }
+
+        function slideRight() {
+            for (let r = 0; r < rows; r++) {
+                let row = board[r];
+                row.reverse();
+                row = slide(row);
+                board[r] = row.reverse();
+                for (let c = 0; c < columns; c++) {
+                    let tile = document.getElementById(r.toString() + "-" + c.toString());
+                    let num = board[r][c];
+                    updateTile(tile, num);
+                }
+            }
+        }
+
+        function slideUp() {
+            for (let c = 0; c < columns; c++) {
+                let row = [board[0][c], board[1][c], board[2][c], board[3][c]];
+                row = slide(row);
+                for (let r = 0; r < rows; r++) {
+                    board[r][c] = row[r];
+                    let tile = document.getElementById(r.toString() + "-" + c.toString());
+                    let num = board[r][c];
+                    updateTile(tile, num);
+                }
+            }
+        }
+
+        function slideDown() {
+            for (let c = 0; c < columns; c++) {
+                let row = [board[0][c], board[1][c], board[2][c], board[3][c]];
+                row.reverse();
+                row = slide(row);
+                row.reverse();
+                for (let r = 0; r < rows; r++) {
+                    board[r][c] = row[r];
+                    let tile = document.getElementById(r.toString() + "-" + c.toString());
+                    let num = board[r][c];
+                    updateTile(tile, num);
+                }
+            }
+        }
+
+        function setTwo() {
+            if (!hasEmptyTile()) {
+                return;
+            }
+            let found = false;
+            while (!found) {
+                let r = Math.floor(Math.random() * rows);
+                let c = Math.floor(Math.random() * columns);
+                if (board[r][c] == 0) {
+                    board[r][c] = 2;
+                    let tile = document.getElementById(r.toString() + "-" + c.toString());
+                    tile.innerText = "2";
+                    tile.classList.add("x2");
+                    found = true;
+                }
+            }
+        }
+
+        function hasEmptyTile() {
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < columns; c++) {
+                    if (board[r][c] == 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pac-Man</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+            overflow: hidden;
+        }
+        #board {
+            background-color: black;
+            box-shadow: 0 0 40px rgba(255, 255, 0, 0.3);
+            border-radius: 10px;
+            max-width: 100%;
+            height: auto;
+        }
+        .start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .start-box {
+            background: linear-gradient(135deg, #0f0c29, #302b63);
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            max-width: 90%;
+            border: 3px solid #ffff00;
+            box-shadow: 0 0 30px rgba(255, 255, 0, 0.5);
+        }
+        .start-box h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #ffff00;
+        }
+        .start-box .controls {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            text-align: left;
+        }
+        .start-box .controls p {
+            margin: 0.5rem 0;
+        }
+        .start-btn {
+            background: #ffff00;
+            border: none;
+            color: #000;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s;
+        }
+        .start-btn:hover {
+            background: #fff;
+            transform: scale(1.05);
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-box">
+            <h2>👻 PAC-MAN</h2>
+            <div class="controls">
+                <p><strong>Управление:</strong></p>
+                <p>⬆️⬇️⬅️➡️ Стрелки - движение</p>
+                <p>👆 Свайп - направление (touch)</p>
+            </div>
+            <p>Собирайте точки и избегайте призраков!</p>
+            <p>❤️ Жизни: 3</p>
+            <button class="start-btn" onclick="startPacman()">Начать игру</button>
+        </div>
+    </div>
+    <canvas id="board"></canvas>
+
+    <script>
+        // Telegram WebApp
+        if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+
+        let board;
+        const rowCount = 21;
+        const columnCount = 19;
+        const tileSize = 32;
+        const boardWidth = columnCount * tileSize;
+        const boardHeight = rowCount * tileSize;
+        let context;
+
+        let blueGhostImage, orangeGhostImage, pinkGhostImage, redGhostImage;
+        let pacmanUpImage, pacmanDownImage, pacmanLeftImage, pacmanRightImage;
+        let wallImage;
+
+        const tileMap = [
+            "XXXXXXXXXXXXXXXXXXX",
+            "X        X        X",
+            "X XX XXX X XXX XX X",
+            "X                 X",
+            "X XX X XXXXX X XX X",
+            "X    X       X    X",
+            "XXXX XXXX XXXX XXXX",
+            "OOOX X       X XOOO",
+            "XXXX X XXrXX X XXXX",
+            "O       bpo       O",
+            "XXXX X XXXXX X XXXX",
+            "OOOX X       X XOOO",
+            "XXXX X XXXXX X XXXX",
+            "X        X        X",
+            "X XX XXX X XXX XX X",
+            "X  X     P     X  X",
+            "XX X X XXXXX X X XX",
+            "X    X   X   X    X",
+            "X XXXXXX X XXXXXX X",
+            "X                 X",
+            "XXXXXXXXXXXXXXXXXXX"
+        ];
+
+        const walls = new Set();
+        const foods = new Set();
+        const ghosts = new Set();
+        let pacman;
+
+        const directions = ['U', 'D', 'L', 'R'];
+        let score = 0;
+        let lives = 3;
+        let gameOver = false;
+        let lastFrameTime = 0;
+        const FPS_LIMIT = 60;
+        const FRAME_MIN_TIME = 1000 / FPS_LIMIT;
+
+        function startPacman() {
+            document.getElementById('startOverlay').classList.add('hidden');
+            requestAnimationFrame(update);
+        }
+
+        window.onload = function() {
+            board = document.getElementById("board");
+            board.height = boardHeight;
+            board.width = boardWidth;
+            context = board.getContext("2d");
+
+            loadImages();
+            setTimeout(() => {
+                loadMap();
+                for (let ghost of ghosts.values()) {
+                    const newDirection = directions[Math.floor(Math.random() * 4)];
+                    ghost.updateDirection(newDirection);
+                }
+                update();
+            }, 100);
+
+            document.addEventListener("keyup", movePacman);
+            setupTouchControls();
+        }
+
+        function setupTouchControls() {
+            let touchStartX = 0;
+            let touchStartY = 0;
+
+            board.addEventListener('touchstart', function(e) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                e.preventDefault();
+            }, false);
+
+            board.addEventListener('touchend', function(e) {
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                const minSwipe = 30;
+
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    if (Math.abs(deltaX) > minSwipe) {
+                        if (deltaX > 0) {
+                            pacman.updateDirection('R');
+                            pacman.image = pacmanRightImage;
+                        } else {
+                            pacman.updateDirection('L');
+                            pacman.image = pacmanLeftImage;
+                        }
+                    }
+                } else {
+                    if (Math.abs(deltaY) > minSwipe) {
+                        if (deltaY > 0) {
+                            pacman.updateDirection('D');
+                            pacman.image = pacmanDownImage;
+                        } else {
+                            pacman.updateDirection('U');
+                            pacman.image = pacmanUpImage;
+                        }
+                    }
+                }
+                e.preventDefault();
+            }, false);
+        }
+
+        function loadImages() {
+            wallImage = new Image();
+            wallImage.src = "./img/pacman/wall.png";
+
+            blueGhostImage = new Image();
+            blueGhostImage.src = "./img/pacman/blueGhost.png";
+            orangeGhostImage = new Image();
+            orangeGhostImage.src = "./img/pacman/orangeGhost.png";
+            pinkGhostImage = new Image();
+            pinkGhostImage.src = "./img/pacman/pinkGhost.png";
+            redGhostImage = new Image();
+            redGhostImage.src = "./img/pacman/redGhost.png";
+
+            pacmanUpImage = new Image();
+            pacmanUpImage.src = "./img/pacman/pacmanUp.png";
+            pacmanDownImage = new Image();
+            pacmanDownImage.src = "./img/pacman/pacmanDown.png";
+            pacmanLeftImage = new Image();
+            pacmanLeftImage.src = "./img/pacman/pacmanLeft.png";
+            pacmanRightImage = new Image();
+            pacmanRightImage.src = "./img/pacman/pacmanRight.png";
+        }
+
+        function loadMap() {
+            walls.clear();
+            foods.clear();
+            ghosts.clear();
+
+            for (let r = 0; r < rowCount; r++) {
+                for (let c = 0; c < columnCount; c++) {
+                    const row = tileMap[r];
+                    const tileMapChar = row[c];
+                    const x = c * tileSize;
+                    const y = r * tileSize;
+
+                    if (tileMapChar == 'X') {
+                        const wall = new Block(wallImage, x, y, tileSize, tileSize);
+                        walls.add(wall);
+                    } else if (tileMapChar == 'b') {
+                        const ghost = new Block(blueGhostImage, x, y, tileSize, tileSize);
+                        ghosts.add(ghost);
+                    } else if (tileMapChar == 'o') {
+                        const ghost = new Block(orangeGhostImage, x, y, tileSize, tileSize);
+                        ghosts.add(ghost);
+                    } else if (tileMapChar == 'p') {
+                        const ghost = new Block(pinkGhostImage, x, y, tileSize, tileSize);
+                        ghosts.add(ghost);
+                    } else if (tileMapChar == 'r') {
+                        const ghost = new Block(redGhostImage, x, y, tileSize, tileSize);
+                        ghosts.add(ghost);
+                    } else if (tileMapChar == 'P') {
+                        pacman = new Block(pacmanRightImage, x, y, tileSize, tileSize);
+                    } else if (tileMapChar == ' ') {
+                        const food = new Block(null, x + 14, y + 14, 4, 4);
+                        foods.add(food);
+                    }
+                }
+            }
+        }
+
+        function update(currentTime) {
+            const deltaTime = currentTime - lastFrameTime;
+            if (deltaTime < FRAME_MIN_TIME) {
+                requestAnimationFrame(update);
+                return;
+            }
+            lastFrameTime = currentTime;
+            
+            if (gameOver) {
+                return;
+            }
+            move();
+            draw();
+            setTimeout(update, 50);
+        }
+
+        function draw() {
+            context.clearRect(0, 0, board.width, board.height);
+            context.drawImage(pacman.image, pacman.x, pacman.y, pacman.width, pacman.height);
+            
+            for (let ghost of ghosts.values()) {
+                context.drawImage(ghost.image, ghost.x, ghost.y, ghost.width, ghost.height);
+            }
+
+            for (let wall of walls.values()) {
+                context.drawImage(wall.image, wall.x, wall.y, wall.width, wall.height);
+            }
+
+            context.fillStyle = "white";
+            for (let food of foods.values()) {
+                context.fillRect(food.x, food.y, food.width, food.height);
+            }
+
+            context.fillStyle = "white";
+            context.font = "14px sans-serif";
+            if (gameOver) {
+                context.fillText("Игра окончена: " + String(score), tileSize / 2, tileSize / 2);
+            } else {
+                context.fillText("x" + String(lives) + " " + String(score), tileSize / 2, tileSize / 2);
+            }
+        }
+
+        function move() {
+            pacman.x += pacman.velocityX;
+            pacman.y += pacman.velocityY;
+
+            for (let wall of walls.values()) {
+                if (collision(pacman, wall)) {
+                    pacman.x -= pacman.velocityX;
+                    pacman.y -= pacman.velocityY;
+                    break;
+                }
+            }
+
+            for (let ghost of ghosts.values()) {
+                if (collision(ghost, pacman)) {
+                    lives -= 1;
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                    }
+                    if (lives == 0) {
+                        gameOver = true;
+                        return;
+                    }
+                    resetPositions();
+                }
+
+                if (ghost.y == tileSize * 9 && ghost.direction != 'U' && ghost.direction != 'D') {
+                    ghost.updateDirection('U');
+                }
+
+                ghost.x += ghost.velocityX;
+                ghost.y += ghost.velocityY;
+                for (let wall of walls.values()) {
+                    if (collision(ghost, wall) || ghost.x <= 0 || ghost.x + ghost.width >= boardWidth) {
+                        ghost.x -= ghost.velocityX;
+                        ghost.y -= ghost.velocityY;
+                        const newDirection = directions[Math.floor(Math.random() * 4)];
+                        ghost.updateDirection(newDirection);
+                    }
+                }
+            }
+
+            let foodEaten = null;
+            for (let food of foods.values()) {
+                if (collision(pacman, food)) {
+                    foodEaten = food;
+                    score += 10;
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.impactOccurred('light');
+                    }
+                    break;
+                }
+            }
+            foods.delete(foodEaten);
+
+            if (foods.size == 0) {
+                if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                    Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+                }
+                loadMap();
+                resetPositions();
+            }
+        }
+
+        function movePacman(e) {
+            if (gameOver) {
+                loadMap();
+                resetPositions();
+                lives = 3;
+                score = 0;
+                gameOver = false;
+                update();
+                return;
+            }
+
+            if (e.code == "ArrowUp" || e.code == "KeyW") {
+                pacman.updateDirection('U');
+                pacman.image = pacmanUpImage;
+            } else if (e.code == "ArrowDown" || e.code == "KeyS") {
+                pacman.updateDirection('D');
+                pacman.image = pacmanDownImage;
+            } else if (e.code == "ArrowLeft" || e.code == "KeyA") {
+                pacman.updateDirection('L');
+                pacman.image = pacmanLeftImage;
+            } else if (e.code == "ArrowRight" || e.code == "KeyD") {
+                pacman.updateDirection('R');
+                pacman.image = pacmanRightImage;
+            }
+        }
+
+        function collision(a, b) {
+            return a.x < b.x + b.width &&
+                   a.x + a.width > b.x &&
+                   a.y < b.y + b.height &&
+                   a.y + a.height > b.y;
+        }
+
+        function resetPositions() {
+            pacman.reset();
+            pacman.velocityX = 0;
+            pacman.velocityY = 0;
+            for (let ghost of ghosts.values()) {
+                ghost.reset();
+                const newDirection = directions[Math.floor(Math.random() * 4)];
+                ghost.updateDirection(newDirection);
+            }
+        }
+
+        class Block {
+            constructor(image, x, y, width, height) {
+                this.image = image;
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.startX = x;
+                this.startY = y;
+                this.direction = 'R';
+                this.velocityX = 0;
+                this.velocityY = 0;
+            }
+
+            updateDirection(direction) {
+                const prevDirection = this.direction;
+                this.direction = direction;
+                this.updateVelocity();
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+
+                for (let wall of walls.values()) {
+                    if (collision(this, wall)) {
+                        this.x -= this.velocityX;
+                        this.y -= this.velocityY;
+                        this.direction = prevDirection;
+                        this.updateVelocity();
+                        return;
+                    }
+                }
+            }
+
+            updateVelocity() {
+                if (this.direction == 'U') {
+                    this.velocityX = 0;
+                    this.velocityY = -tileSize / 4;
+                } else if (this.direction == 'D') {
+                    this.velocityX = 0;
+                    this.velocityY = tileSize / 4;
+                } else if (this.direction == 'L') {
+                    this.velocityX = -tileSize / 4;
+                    this.velocityY = 0;
+                } else if (this.direction == 'R') {
+                    this.velocityX = tileSize / 4;
+                    this.velocityY = 0;
+                }
+            }
+
+            reset() {
+                this.x = this.startX;
+                this.y = this.startY;
+            }
+        }
+    </script>
+</body>
+</html>
