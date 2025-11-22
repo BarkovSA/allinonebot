@@ -95,7 +95,7 @@
                 <p>🖱️ Клик / Пробел - прыжок</p>
                 <p>👆 Тап - прыжок (touch)</p>
             </div>
-            <p>Перепрыгивайте кактусы и набирайте очки!</p>
+            <p>Уворачивайся от кактусов и птиц! 🌵🦅</p>
             <button class="start-btn" onclick="startDino()">Начать игру</button>
         </div>
     </div>
@@ -119,6 +119,7 @@
         let dinoX = 50;
         let dinoY = boardHeight - dinoHeight;
         let dinoImg;
+        let dinoRun1Img, dinoRun2Img, dinoDeadImg;
 
         let dino = {
             x: dinoX,
@@ -128,6 +129,8 @@
         };
 
         let cactusArray = [];
+        let birdArray = [];
+        
         let cactus1Width = 28;
         let cactus2Width = 55;
         let cactus3Width = 82;
@@ -136,6 +139,11 @@
         let cactusY = boardHeight - cactusHeight;
 
         let cactus1Img, cactus2Img, cactus3Img;
+        
+        let birdWidth = 60;
+        let birdHeight = 45;
+        let birdX = 700;
+        let bird1Img, bird2Img;
 
         let velocityX = -8;
         let velocityY = 0;
@@ -161,21 +169,35 @@
             board.width = boardWidth;
             context = board.getContext("2d");
 
+            // Загрузка спрайтов динозавра
             dinoImg = new Image();
             dinoImg.src = "./img/dino.png";
-            dinoImg.onload = function() {
-                context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
-            };
+            
+            dinoRun1Img = new Image();
+            dinoRun1Img.src = "./img/dino-run1.png";
+            
+            dinoRun2Img = new Image();
+            dinoRun2Img.src = "./img/dino-run2.png";
+            
+            dinoDeadImg = new Image();
+            dinoDeadImg.src = "./img/dino-dead.png";
 
+            // Загрузка спрайтов кактусов
             cactus1Img = new Image();
             cactus1Img.src = "./img/cactus1.png";
             cactus2Img = new Image();
             cactus2Img.src = "./img/cactus2.png";
             cactus3Img = new Image();
             cactus3Img.src = "./img/cactus3.png";
+            
+            // Загрузка спрайтов птиц
+            bird1Img = new Image();
+            bird1Img.src = "./img/bird1.png";
+            bird2Img = new Image();
+            bird2Img.src = "./img/bird2.png";
 
             requestAnimationFrame(update);
-            setInterval(placeCactus, 1000);
+            setInterval(placeObstacle, 1000);
             document.addEventListener("keydown", moveDino);
             setupTouchControls();
         };
@@ -211,7 +233,7 @@
             velocityY += gravity;
             dino.y = Math.min(dino.y + velocityY, dinoY);
             
-            // Анимация ног (только когда на земле)
+            // Анимация ног динозавра
             if (dino.y === dinoY) {
                 legCounter++;
                 if (legCounter % 5 === 0) {
@@ -219,30 +241,20 @@
                 }
             }
             
-            // Рисуем простого динозавра с анимацией ног
-            context.fillStyle = '#535353';
-            // Тело
-            context.fillRect(dino.x, dino.y, dino.width, dino.height * 0.6);
-            // Голова
-            context.fillRect(dino.x + dino.width * 0.7, dino.y - dino.height * 0.3, dino.width * 0.4, dino.height * 0.4);
-            // Ноги (анимированные)
-            if (dino.y === dinoY) {
-                if (legFrame === 0) {
-                    context.fillRect(dino.x + 10, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
-                    context.fillRect(dino.x + dino.width - 18, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
-                } else {
-                    context.fillRect(dino.x + 5, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
-                    context.fillRect(dino.x + dino.width - 13, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
-                }
+            // Рисуем динозавра (используем спрайты)
+            let currentDinoImg;
+            if (gameOver) {
+                currentDinoImg = dinoDeadImg;
+            } else if (dino.y === dinoY) {
+                // Бег - чередуем спрайты
+                currentDinoImg = legFrame === 0 ? dinoRun1Img : dinoRun2Img;
             } else {
-                // В прыжке - статичные ноги
-                context.fillRect(dino.x + 10, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
-                context.fillRect(dino.x + dino.width - 18, dino.y + dino.height * 0.6, 8, dino.height * 0.4);
+                // В прыжке
+                currentDinoImg = dinoImg;
             }
-            // Глаз
-            context.fillStyle = gameOver ? '#ff0000' : '#ffffff';
-            context.fillRect(dino.x + dino.width * 0.75, dino.y - dino.height * 0.2, 6, 6);
+            context.drawImage(currentDinoImg, dino.x, dino.y, dino.width, dino.height);
 
+            // Обработка кактусов
             for (let i = 0; i < cactusArray.length; i++) {
                 let cactus = cactusArray[i];
                 cactus.x += velocityX;
@@ -250,10 +262,24 @@
 
                 if (detectCollision(dino, cactus)) {
                     gameOver = true;
-                    dinoImg.src = "./img/dino-dead.png";
-                    dinoImg.onload = function() {
-                        context.drawImage(dinoImg, dino.x, dino.y, dino.width, dino.height);
-                    };
+                    if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
+                        Telegram.WebApp.HapticFeedback.notificationOccurred('error');
+                    }
+                }
+            }
+            
+            // Обработка птиц
+            for (let i = 0; i < birdArray.length; i++) {
+                let bird = birdArray[i];
+                bird.x += velocityX;
+                
+                // Анимация птицы
+                bird.frame++;
+                let currentBirdImg = (Math.floor(bird.frame / 5) % 2 === 0) ? bird1Img : bird2Img;
+                context.drawImage(currentBirdImg, bird.x, bird.y, bird.width, bird.height);
+
+                if (detectCollision(dino, bird)) {
+                    gameOver = true;
                     if (typeof Telegram !== 'undefined' && Telegram.WebApp) {
                         Telegram.WebApp.HapticFeedback.notificationOccurred('error');
                     }
@@ -280,37 +306,62 @@
             }
         }
 
-        function placeCactus() {
+        function placeObstacle() {
             if (gameOver) {
                 return;
             }
 
-            let cactus = {
-                img: null,
-                x: cactusX,
-                y: cactusY,
-                width: null,
-                height: cactusHeight
-            };
+            let placeObstacleChance = Math.random();
+            
+            // 40% шанс - птица, 60% шанс - кактус
+            if (placeObstacleChance > 0.6) {
+                // Создаём птицу на разной высоте
+                let birdY;
+                if (Math.random() > 0.5) {
+                    birdY = boardHeight - 150; // Высоко
+                } else {
+                    birdY = boardHeight - 100; // Средне
+                }
+                
+                let bird = {
+                    x: birdX,
+                    y: birdY,
+                    width: birdWidth,
+                    height: birdHeight,
+                    frame: 0
+                };
+                birdArray.push(bird);
+            } else if (placeObstacleChance > 0.4) {
+                // Создаём кактус
+                let cactus = {
+                    img: null,
+                    x: cactusX,
+                    y: cactusY,
+                    width: null,
+                    height: cactusHeight
+                };
 
-            let placeCactusChance = Math.random();
+                let placeCactusChance = Math.random();
 
-            if (placeCactusChance > 0.90) {
-                cactus.img = cactus3Img;
-                cactus.width = cactus3Width;
-                cactusArray.push(cactus);
-            } else if (placeCactusChance > 0.70) {
-                cactus.img = cactus2Img;
-                cactus.width = cactus2Width;
-                cactusArray.push(cactus);
-            } else if (placeCactusChance > 0.50) {
-                cactus.img = cactus1Img;
-                cactus.width = cactus1Width;
+                if (placeCactusChance > 0.90) {
+                    cactus.img = cactus3Img;
+                    cactus.width = cactus3Width;
+                } else if (placeCactusChance > 0.70) {
+                    cactus.img = cactus2Img;
+                    cactus.width = cactus2Width;
+                } else {
+                    cactus.img = cactus1Img;
+                    cactus.width = cactus1Width;
+                }
                 cactusArray.push(cactus);
             }
 
+            // Очистка старых препятствий
             if (cactusArray.length > 5) {
                 cactusArray.shift();
+            }
+            if (birdArray.length > 5) {
+                birdArray.shift();
             }
         }
 
